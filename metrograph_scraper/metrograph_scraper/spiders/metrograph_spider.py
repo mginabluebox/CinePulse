@@ -32,7 +32,7 @@ class MetrographSpider(scrapy.Spider):
             for st in block.css('div.film_day'):
                 
                 date = st.css('h5.sr-only::text').get() # e.g. Monday January 20
-                date = date.split(' ')[1] + date.split(' ')[2]
+                # date = date.split(' ')[1] + ' ' + date.split(' ')[2]
                 time = st.css('a::text').get() # e.g. 4:00pm
 
                 ticket_link = 'sold_out'
