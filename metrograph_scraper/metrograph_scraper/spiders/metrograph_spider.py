@@ -29,6 +29,8 @@ class MetrographSpider(scrapy.Spider):
                 year, runtime = year.strip(), runtime.strip()
                 format = None
             
+            runtime = int(runtime.replace('min','').strip())
+
             ## Get synopsis
             # todo: get full synopsis
             synopsis = block.css('p.synopsis::text').get()
