@@ -6,19 +6,31 @@
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
+from dotenv import load_dotenv
+import os
 import psycopg2
 
 # class MetrographScraperPipeline:
 #     def process_item(self, item, spider):
 #         return item
 
+load_dotenv()
+
 class MetrographScraperPipeline:
     def open_spider(self, spider):
+        
+        # Read from environment variables
+        dbname = os.getenv('DB_NAME')
+        user = os.getenv('DB_USER')
+        password = os.getenv('DB_PASSWORD')
+        host = os.getenv('DB_HOST')
+
+        # Connect to the PostgreSQL database
         self.conn = psycopg2.connect(
-            dbname="your_db",
-            user="your_user",
-            password="your_password",
-            host="localhost"
+            dbname=dbname,
+            user=user,
+            password=password,
+            host=host
         )
         self.cur = self.conn.cursor()
 
