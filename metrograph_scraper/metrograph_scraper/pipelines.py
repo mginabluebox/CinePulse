@@ -10,6 +10,7 @@ import psycopg2
 from itemadapter import ItemAdapter
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
+from datetime import datetime
 
 # Find .env in the root folder
 load_dotenv(find_dotenv())
@@ -39,11 +40,12 @@ class MetrographScraperPipeline:
     def process_item(self, item, spider):
         self.cur.execute("""
             INSERT INTO showtimes 
-            (title, show_time, show_day, ticket_link, director1, director2, year, runtime, format, synopsis, cinema)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (title, crawled_at, show_time, show_day, ticket_link, director1, director2, year, runtime, format, synopsis, cinema)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT DO NOTHING;
         """, (
             item.get('title'),
+            datetime.now(),
             item.get('show_time'),
             item.get('show_day'),
             item.get('ticket_link'),

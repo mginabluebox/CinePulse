@@ -30,6 +30,7 @@ def create_table():
         DROP TABLE IF EXISTS showtimes;
         CREATE TABLE showtimes (
             id SERIAL PRIMARY KEY,
+            crawled_at TIMESTAMP NOT NULL,
             title VARCHAR(255) NOT NULL,
             show_time TIMESTAMP NOT NULL,
             show_day VARCHAR(20) NOT NULL,
