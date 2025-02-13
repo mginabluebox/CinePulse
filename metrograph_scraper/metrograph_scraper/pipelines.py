@@ -23,13 +23,15 @@ class MetrographScraperPipeline:
         user = os.getenv('DB_USER')
         password = os.getenv('DB_PASSWORD')
         host = os.getenv('DB_HOST')
+        port=os.getenv("DB_PORT")
 
         # Connect to the PostgreSQL database
         self.conn = psycopg2.connect(
             dbname=dbname,
             user=user,
             password=password,
-            host=host
+            host=host,
+            port=port
         )
         self.cur = self.conn.cursor()
 
