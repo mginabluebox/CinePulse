@@ -19,3 +19,4 @@ class Showtime(Base):
     format = Column(String(50))
     synopsis = Column(Text)
     cinema = Column(String)
+

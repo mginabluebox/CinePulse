@@ -1,9 +1,10 @@
-from database.routes import get_showtimes
+from database.queries import get_showtimes
+from database.setup_db import setup_database
 from flask_cors import CORS
 from flask import Flask, render_template, request, jsonify
 import ollama
 
-from database.setup_db import setup_database
+
 
 # Initialize the database
 setup_database()
@@ -14,7 +15,6 @@ app = Flask(__name__)
 @app.route('/')
 def index():
     showtimes = get_showtimes()  # Fetch movie data
-    print(f"Showtimes passed to template: {showtimes}")  # Debug print
     return render_template('index.html', showtimes=showtimes)
 
 @app.route('/recommend', methods=['POST'])

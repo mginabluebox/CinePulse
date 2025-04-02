@@ -1,6 +1,6 @@
+from sqlalchemy import func, text
 from .setup_db import get_session
 from .models import Showtime
-from sqlalchemy import func, text
 
 def get_showtimes():
     """Fetch upcoming showtimes from the database using ORM."""
@@ -23,15 +23,6 @@ def get_showtimes():
             Showtime.show_time >= func.now(),
             Showtime.show_time < func.now() + text("interval '2 weeks'")
         ).order_by(Showtime.show_time.asc()).all()
-
-        # # Print the raw SQL query for debugging
-        # print(str(showtimes.statement.compile(compile_kwargs={"literal_binds": True})))
-
-
-        # # Execute the query
-        # showtimes = query.all()
-
-        # print(f"Fetched showtimes: {showtimes}")  # Debug print
 
         # Convert the result to a list of dictionaries for easier use in templates
         return [
