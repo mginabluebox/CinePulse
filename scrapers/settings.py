@@ -9,8 +9,8 @@
 
 BOT_NAME = "metrograph_scraper"
 
-SPIDER_MODULES = ["metrograph_scraper.spiders"]
-NEWSPIDER_MODULE = "metrograph_scraper.spiders"
+SPIDER_MODULES = ["spiders"]
+NEWSPIDER_MODULE = "spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -63,7 +63,7 @@ ROBOTSTXT_OBEY = True
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   "metrograph_scraper.pipelines.MetrographScraperPipeline": 300,
+   "pipelines.MetrographScraperPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
