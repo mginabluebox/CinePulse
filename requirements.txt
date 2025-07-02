@@ -49,8 +49,10 @@ queuelib==1.7.0
 requests==2.32.3
 requests-file==2.1.0
 Scrapy==2.12.0
+scrapy-splash==0.11.1
 service-identity==24.2.0
 setuptools==75.8.0
+six==1.17.0
 sniffio==1.3.1
 SQLAlchemy==2.0.40
 tldextract==5.1.3
