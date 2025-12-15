@@ -2,11 +2,27 @@ from sqlalchemy import func, text
 from .setup_db import get_session
 from .models import Showtime
 
-def get_showtimes():
-    """Fetch upcoming showtimes from the database using ORM."""
+
+def get_showtimes(interval_days: int = 14):
+    """Fetch upcoming showtimes from the database using ORM.
+
+    Args:
+        interval_days: how many days into the future to include (default: 14).
+
+    Returns:
+        A list of dictionaries describing upcoming showtimes.
+    """
     session = get_session()
     try:
-        # Query the database for showtimes within the next 2 weeks
+        # Safely coerce to int and build a Postgres interval string
+        try:
+            days = int(interval_days)
+        except Exception:
+            days = 14
+
+        interval_sql = text(f"interval '{days} days'")
+
+        # Query the database for showtimes within the provided interval
         showtimes = session.query(
             Showtime.title,
             func.to_char(Showtime.show_time, 'YYYY-MM-DD').label('showdate'),
@@ -18,16 +34,16 @@ def get_showtimes():
             Showtime.runtime,
             func.coalesce(Showtime.format, '-').label('format'),
             Showtime.synopsis,
-            Showtime.cinema
+            Showtime.cinema,
         ).filter(
             Showtime.show_time >= func.now(),
-            Showtime.show_time < func.now() + text("interval '2 weeks'")
+            Showtime.show_time < func.now() + interval_sql,
         ).order_by(Showtime.show_time.asc()).all()
 
         # Convert the result to a list of dictionaries for easier use in templates
         return [
             {
-                "title" : row.title,
+                "title": row.title,
                 "showdate": row.showdate,
                 "showtime": row.showtime,
                 "show_day": row.show_day,
