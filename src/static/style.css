@@ -6,3 +6,99 @@ h1 {
     color: #007bff;
     margin-bottom: 20px;
 }
+
+/* Swipe card styles */
+.card-deck-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    height: 420px;
+    margin: 0 auto 1rem auto;
+}
+
+.swipe-card {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 700px;
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    background: #fff;
+    padding: 16px;
+    transition: transform 200ms ease, opacity 200ms ease;
+    touch-action: pan-y;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.swipe-card .title {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.swipe-card .reason {
+    margin-top: 8px;
+    color: #333;
+    flex: 1 1 auto;
+}
+
+.swipe-card .meta {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.swipe-card .ticket-btn {
+    margin-top: 12px;
+}
+
+.swipe-card .synopsis {
+    margin-top: 10px;
+    color: #444;
+    font-size: 0.95rem;
+    max-height: 120px;
+    overflow: auto;
+    opacity: 0.95;
+}
+
+.swipe-card.like {
+    border: 2px solid rgba(40, 167, 69, 0.6);
+}
+.swipe-card.nope {
+    border: 2px solid rgba(220, 53, 69, 0.6);
+}
+
+.card-stack-count {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    background: rgba(0,0,0,0.05);
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.hidden { display: none !important; }
+
+/* Placeholder inside the card deck: match card sizing and centering so the
+   helper text doesn't peek out on wide screens. Keeps the same visual
+   footprint as a card and sits behind swipe cards when they exist. */
+#cardDeck #noRecs {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 700px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    text-align: center;
+    color: #6c757d; /* text-muted look */
+    z-index: 1; /* swipe cards use higher z-index so they appear above */
+}

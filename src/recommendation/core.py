@@ -93,32 +93,31 @@ def recommend_movies(liked_movies: str, mood: str, db_engine: Engine):
     # limit to 10 earliest entries
     selected = candidates[:10]
 
+    # Only include a compact set of fields in the prompt to keep it short:
+    # ID, Title, Director, Synopsis
     movies_lines = []
     for i, m in enumerate(selected, 1):
         movies_lines.append(
-            f"{i}. ID: {m.get('id') or ''}  Title: {m['original']}\n"
-            f"   Date: {m.get('showdate') or ''} {m.get('showtime') or ''}\n"
-            f"   Cinema: {m.get('cinema') or ''}\n"
+            f"   ID: {m.get('id') or ''}\n"
+            f"   Title: {m['original']}\n"
             f"   Director: {m.get('director') or ''}\n"
-            f"   Year: {m.get('year') or ''}\n"
-            f"   Runtime: {m.get('runtime') or ''}\n"
-            f"   Format: {m.get('format') or ''}\n"
             f"   Synopsis: {m.get('synopsis') or ''}\n"
         )
-    movies_list_text = "\n\n".join(movies_lines)
+    movies_list_text = "\n".join(movies_lines)
 
-    print('Movies list for prompt:', movies_list_text)
+    # print('Movies list for prompt:', movies_list_text)
     prompt = (
         f"You are a helpful cinema recommender. The user recently liked: \"{liked_movies}\" "
         f"and is in the mood for: \"{mood}\".\n\n"
         "Below is a list of movies showing in the next 7 days. Each item includes an ID which is "
         "the database id for that showing.\n\n"
-        f"{movies_list_text}\n\n"
-        "Task: From the above list, choose up to 5 movies that best match the user's recent likes and "
-        "current mood. For each recommended movie return a one-sentence reason. IMPORTANT: Return ONLY "
-        "a single valid JSON object (no surrounding text) mapping the movie ID to the one-sentence reason. "
-        "Example: {\"123\": \"1-2 sentences of reason why this matches the user's taste.\", \"456\": \"Another 1-2 sentences of reason why this matches the user's taste.\"}. "
-        "If no movies match, return an empty JSON object {}. Do not include any explanations outside the JSON."
+    f"{movies_list_text}\n\n"
+    "Task: From the above list, choose up to 5 movies that best match the user's recent likes and "
+    "current mood. For each recommended movie return a one-sentence reason. IMPORTANT: Address the user "
+    "directly in each reason (use 'you' or 'your' rather than referring to the user in the third person). "
+    "Return ONLY a single valid JSON object (no surrounding text) mapping the movie ID to the one-sentence reason. "
+    "Example: {\"123\": \"1-2 sentences of reason why this matches your taste.\", \"456\": \"Another 1-2 sentences of reason why this matches your taste.\"}. "
+    "If no movies match, return an empty JSON object {}. Do not include any explanations outside the JSON."
     )
     print('Prompt:', prompt)
 
