@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy.engine import Engine
 from database.queries import get_showtimes, get_showtimes_by_ids
 from .llm import call_llm
+from errors import LLMError, DBError, ParseError
 
 
 def _clean_title(title: str) -> str:
@@ -66,12 +67,13 @@ def _dedupe_rows(rows):
     return candidates
 
 
-def fetch_showtimes(days: int = 7, limit: int = 10):
+def fetch_showtimes(days: int = 7, limit: int = 10, engine=None):
     """Fetch showtimes from the DB and return up to `limit` candidate rows (deduped and ordered)."""
     try:
-        raw = get_showtimes(days)
+        # allow callers to provide an engine via DI
+        raw = get_showtimes(days, engine=engine)
     except Exception as e:
-        raise RuntimeError(f"Error fetching upcoming movies: {e}")
+        raise DBError(f"Error fetching upcoming movies: {e}")
 
     if not raw:
         return []
@@ -82,12 +84,19 @@ def fetch_showtimes(days: int = 7, limit: int = 10):
 
 def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> str:
     # Build a compact movies list text with only id, title, director, synopsis
+    def _truncate(s: str, n: int = 300) -> str:
+        if not s:
+            return ''
+        s = str(s)
+        return s if len(s) <= n else s[:n].rsplit(' ', 1)[0] + '...'
+
     movies_lines = []
     for i, m in enumerate(candidates, 1):
+        synopsis = _truncate(m.get('synopsis') or '', 300)
         movies_lines.append(
             f"{i}. ID: {m.get('id') or ''}  Title: {m['original']}\n"
             f"   Director: {m.get('director') or ''}\n"
-            f"   Synopsis: {m.get('synopsis') or ''}\n"
+            f"   Synopsis: {synopsis}\n"
         )
     movies_list_text = "\n\n".join(movies_lines)
 
@@ -107,11 +116,17 @@ def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> st
     return prompt
 
 
-def get_llm_response(prompt: str, provider: str = None, max_tokens: int = 512, temperature: float = 0.7) -> str:
+def get_llm_response(liked_movies: str, mood: str, candidates, provider: str = None, max_tokens: int = 512, temperature: float = 0.7, days: int = 7) -> str:
+    """Build the prompt from inputs and call the configured LLM provider.
+
+    This centralizes prompt construction so callers only pass high-level inputs.
+    """
+    prompt = _build_prompt(liked_movies, mood, candidates, days=days)
     try:
         return call_llm(prompt, provider=provider, max_tokens=max_tokens, temperature=temperature)
     except Exception as e:
-        raise RuntimeError(f"LLM provider error: {e}")
+        # Wrap or re-raise as LLMError for the HTTP boundary to map to 502
+        raise LLMError(f"LLM provider error: {e}") from e
 
 
 def _extract_json_object(text: str):
@@ -127,10 +142,10 @@ def _extract_json_object(text: str):
     return None
 
 
-def parse_response(text_content: str):
+def parse_response(text_content: str, engine=None):
     parsed_map = _extract_json_object(text_content)
     if not parsed_map or not isinstance(parsed_map, dict):
-        raise ValueError("could not parse id->reason JSON from model output")
+        raise ParseError("could not parse id->reason JSON from model output")
 
     id_to_reason = {}
     ids = []
@@ -149,9 +164,9 @@ def parse_response(text_content: str):
         raise ValueError("model returned no numeric ids")
 
     try:
-        rows = get_showtimes_by_ids(ids)
+        rows = get_showtimes_by_ids(ids, engine=engine)
     except Exception as e:
-        raise RuntimeError(f"database error fetching ids: {e}")
+        raise DBError(f"database error fetching ids: {e}")
 
     recs = []
     for r in rows:
@@ -164,27 +179,17 @@ def parse_response(text_content: str):
     return recs[:5]
 
 
-def recommend_movies(liked_movies: str, mood: str, db_engine: Engine):
+def recommend_movies(liked_movies: str, mood: str, db_engine: Engine = None):
     """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
-    try:
-        candidates = fetch_showtimes(days=7, limit=10)
-    except Exception as e:
-        return {"error": str(e)}
-
+    # Step 1: fetch and dedupe showtimes (may raise on DB error)
+    candidates = fetch_showtimes(days=7, limit=10, engine=db_engine)
     if not candidates:
         return []
 
-    prompt = _build_prompt(liked_movies, mood, candidates, days=7)
-    # include provider selection via env var (default = ollama)
+    # Step 2: build prompt and call LLM (may raise on LLM/provider error)
     provider = os.getenv('LLM_PROVIDER')
-    try:
-        text_content = get_llm_response(prompt, provider=provider, max_tokens=512, temperature=0.7)
-    except Exception as e:
-        return {"error": str(e)}
+    text_content = get_llm_response(liked_movies, mood, candidates, provider=provider, max_tokens=512, temperature=0.7, days=7)
 
-    try:
-        recs = parse_response(text_content)
-    except Exception as e:
-        return {"error": str(e), "raw": text_content}
-
+    # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
+    recs = parse_response(text_content, engine=db_engine)
     return recs

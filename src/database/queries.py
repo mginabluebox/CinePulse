@@ -1,9 +1,10 @@
 from sqlalchemy import func, text
 from .setup_db import get_session
 from .models import Showtime
+from typing import List, Iterable, Optional
 
 
-def get_showtimes(interval_days: int = 14):
+def get_showtimes(interval_days: int = 14, engine=None):
     """Fetch upcoming showtimes from the database using ORM.
 
     Args:
@@ -12,7 +13,7 @@ def get_showtimes(interval_days: int = 14):
     Returns:
         A list of dictionaries describing upcoming showtimes.
     """
-    session = get_session()
+    session = get_session(engine)
     try:
         # Safely coerce to int and build a Postgres interval string
         try:
@@ -59,11 +60,16 @@ def get_showtimes(interval_days: int = 14):
             }
             for row in showtimes
         ]
+    except Exception as exc:
+        # Import DBError lazily to avoid circular imports that occur when
+        # the `recommendation` package's top-level `__init__` imports `core`.
+        from errors import DBError
+        raise DBError("Failed to fetch showtimes") from exc
     finally:
         session.close()
 
 
-def get_showtimes_by_ids(ids):
+def get_showtimes_by_ids(ids: Iterable[int], engine=None):
     """Fetch showtime rows matching the given list of ids.
 
     Args:
@@ -72,7 +78,7 @@ def get_showtimes_by_ids(ids):
     Returns:
         List of dicts with the same shape as get_showtimes()
     """
-    session = get_session()
+    session = get_session(engine)
     try:
         if not ids:
             return []
@@ -121,5 +127,8 @@ def get_showtimes_by_ids(ids):
             }
             for row in showtimes
         ]
+    except Exception as exc:
+        from errors import DBError
+        raise DBError("Failed to fetch showtimes by ids") from exc
     finally:
         session.close()

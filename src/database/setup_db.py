@@ -16,8 +16,10 @@ def get_engine():
     return create_engine(db_url)
 
 # Create a session factory
-def get_session():
-    engine = get_engine()
+def get_session(engine=None):
+    """Return a DB session. If an engine is supplied, use it; otherwise create one from env."""
+    if engine is None:
+        engine = get_engine()
     Session = sessionmaker(bind=engine)
     return Session()
 

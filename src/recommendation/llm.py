@@ -3,6 +3,7 @@ import time
 import json
 import requests
 from typing import Optional
+from errors import LLMError
 
 DEFAULT_OPENAI_TIMEOUT = 30
 DEFAULT_OLLAMA_TIMEOUT = 30
@@ -90,4 +91,5 @@ def call_llm(prompt: str, provider: Optional[str] = None, **kw):
             # small backoff then retry once
             time.sleep(1)
             continue
-    raise last_err
+    # Wrap the last error in an LLMError for callers to handle specifically
+    raise LLMError(f"LLM call failed after retries: {last_err}") from last_err
