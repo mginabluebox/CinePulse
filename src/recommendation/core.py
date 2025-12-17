@@ -1,204 +1,137 @@
 import json
 import os
 import re
-import requests
-from datetime import date, datetime, timedelta
-from sqlalchemy import text
+from datetime import datetime
 from sqlalchemy.engine import Engine
 from database.queries import get_showtimes, get_showtimes_by_ids
+from .llm import call_llm
 
-def recommend_movies(liked_movies: str, mood: str, db_engine: Engine):
-    """
-    Fetch showtimes for the next 7 days and call Ollama to recommend up to 5 movies.
 
-    Returns a list of recommendation dicts (same shape as showtimes plus a 'reason' key),
-    or an error dict on failure.
-    """
-    # 1) Query upcoming showtimes (next 7 days)
+def _clean_title(title: str) -> str:
+    return ''.join(ch for ch in (title or '') if ch.isalnum() or ch.isspace()).lower().strip()
+
+
+def _parse_show_datetime(showdate: str, showtime: str):
+    if not showdate:
+        return None
+    if showtime:
+        for fmt in ("%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.strptime(f"{showdate} {showtime}", fmt)
+            except Exception:
+                continue
     try:
-        # reuse existing query helper; it returns a list of dicts
-        upcoming = get_showtimes(7)
+        return datetime.strptime(showdate, "%Y-%m-%d")
+    except Exception:
+        return None
 
-    except Exception as e:
-        return f"Error fetching upcoming movies: {e}"
 
-    if not upcoming:
-        return "There are no upcoming movies in the next 2 weeks."
-
-    # 3) Build prompt for Ollama
-    # Keep the prompt focused and instructive: choose up to 5, only from list, short reasons.
-    # Deduplicate by a cleaned title key (normalize case/punctuation) but keep the original
-    # title for display. When duplicates exist keep the entry with the earliest show datetime.
+def _dedupe_rows(rows):
+    """Return a list of deduped rows keeping the earliest showing per cleaned title."""
     entries = []
-    for m in upcoming:
+    for m in rows:
         title_orig = (m.get('title') or '').strip()
-        # cleaned title: remove punctuation, collapse whitespace, lowercase
-        cleaned = ''.join(ch for ch in title_orig if ch.isalnum() or ch.isspace()).lower().strip()
-
-        # attempt to parse a datetime from showdate + showtime; fall back to date-only ordering
-        dt = None
-        sd = m.get('showdate')
-        st = m.get('showtime')
-        if sd:
-            if st:
-                try:
-                    dt = datetime.strptime(f"{sd} {st}", "%Y-%m-%d %I:%M %p")
-                except Exception:
-                    try:
-                        dt = datetime.strptime(f"{sd} {st}", "%Y-%m-%d %H:%M")
-                    except Exception:
-                        dt = None
-            if dt is None:
-                try:
-                    dt = datetime.strptime(sd, "%Y-%m-%d")
-                except Exception:
-                    dt = None
-
+        cleaned = _clean_title(title_orig)
+        dt = _parse_show_datetime(m.get('showdate'), m.get('showtime'))
         entries.append({
             'cleaned': cleaned,
             'original': title_orig,
             'id': m.get('id'),
             'dt': dt,
-            'showdate': sd,
-            'showtime': st,
+            'showdate': m.get('showdate'),
+            'showtime': m.get('showtime'),
             'cinema': m.get('cinema'),
             'director': m.get('director'),
             'year': m.get('year'),
             'runtime': m.get('runtime'),
             'format': m.get('format'),
             'synopsis': m.get('synopsis'),
-            # 'ticket_link': m.get('ticket_link'),
         })
 
-    # pick earliest entry per cleaned title
     best_by_title = {}
     for e in entries:
         key = e['cleaned'] or e['original']
         if key in best_by_title:
             existing = best_by_title[key]
-            # compare datetimes when available, else prefer existing (stable)
             if e['dt'] and existing['dt']:
                 if e['dt'] < existing['dt']:
                     best_by_title[key] = e
             elif e['dt'] and not existing['dt']:
                 best_by_title[key] = e
-            # else keep existing
         else:
             best_by_title[key] = e
 
-    # sort by earliest show datetime (entries without dt go to the end)
     candidates = list(best_by_title.values())
     candidates.sort(key=lambda x: x['dt'] if x['dt'] is not None else datetime.max)
+    return candidates
 
-    # limit to 10 earliest entries
-    selected = candidates[:10]
 
-    # Only include a compact set of fields in the prompt to keep it short:
-    # ID, Title, Director, Synopsis
+def fetch_showtimes(days: int = 7, limit: int = 10):
+    """Fetch showtimes from the DB and return up to `limit` candidate rows (deduped and ordered)."""
+    try:
+        raw = get_showtimes(days)
+    except Exception as e:
+        raise RuntimeError(f"Error fetching upcoming movies: {e}")
+
+    if not raw:
+        return []
+
+    candidates = _dedupe_rows(raw)
+    return candidates[:limit]
+
+
+def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> str:
+    # Build a compact movies list text with only id, title, director, synopsis
     movies_lines = []
-    for i, m in enumerate(selected, 1):
+    for i, m in enumerate(candidates, 1):
         movies_lines.append(
-            f"   ID: {m.get('id') or ''}\n"
-            f"   Title: {m['original']}\n"
+            f"{i}. ID: {m.get('id') or ''}  Title: {m['original']}\n"
             f"   Director: {m.get('director') or ''}\n"
             f"   Synopsis: {m.get('synopsis') or ''}\n"
         )
-    movies_list_text = "\n".join(movies_lines)
+    movies_list_text = "\n\n".join(movies_lines)
 
-    # print('Movies list for prompt:', movies_list_text)
     prompt = (
         f"You are a helpful cinema recommender. The user recently liked: \"{liked_movies}\" "
         f"and is in the mood for: \"{mood}\".\n\n"
-        "Below is a list of movies showing in the next 7 days. Each item includes an ID which is "
-        "the database id for that showing.\n\n"
-    f"{movies_list_text}\n\n"
-    "Task: From the above list, choose up to 5 movies that best match the user's recent likes and "
-    "current mood. For each recommended movie return a one-sentence reason. IMPORTANT: Address the user "
-    "directly in each reason (use 'you' or 'your' rather than referring to the user in the third person). "
-    "Return ONLY a single valid JSON object (no surrounding text) mapping the movie ID to the one-sentence reason. "
-    "Example: {\"123\": \"1-2 sentences of reason why this matches your taste.\", \"456\": \"Another 1-2 sentences of reason why this matches your taste.\"}. "
-    "If no movies match, return an empty JSON object {}. Do not include any explanations outside the JSON."
+        f"Below is a list of movies showing in the next {days} days. Each item includes only the ID, Title, "
+        f"Director, and Synopsis (the ID is the database id for that showing).\n\n"
+        f"{movies_list_text}\n\n"
+        "Task: From the above list, choose up to 5 movies that best match the user's recent likes and "
+        "current mood. For each recommended movie return a one-sentence reason. IMPORTANT: Address the user "
+        "directly in each reason (use 'you' or 'your' rather than referring to the user in the third person). "
+        "Return ONLY a single valid JSON object (no surrounding text) mapping the movie ID to the one-sentence reason. "
+        "Example: {\"123\": \"1-2 sentences of reason why this matches your taste.\", \"456\": \"Another 1-2 sentences of reason why this matches your taste.\"}. "
+        "If no movies match, return an empty JSON object {}. Do not include any explanations outside the JSON."
     )
-    print('Prompt:', prompt)
+    return prompt
 
-    # 4) Call Ollama API
-    ollama_base = os.getenv("OLLAMA_BASE", "http://localhost:11434/api")
-    model_name = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
-    payload = {
-        "model": model_name,
-        "prompt": prompt,
-        "max_tokens": 512,
-        "temperature": 0.7,
-        "stream": False
-    }
-
+def get_llm_response(prompt: str, provider: str = None, max_tokens: int = 512, temperature: float = 0.7) -> str:
     try:
-        resp = requests.post(f"{ollama_base}/generate", json=payload, timeout=30)
+        return call_llm(prompt, provider=provider, max_tokens=max_tokens, temperature=temperature)
     except Exception as e:
-        return f"Error calling Ollama API at {ollama_base}/generate: {e}\nCheck that Ollama is running and OLLAMA_BASE/OLLAMA_MODEL are set correctly."
+        raise RuntimeError(f"LLM provider error: {e}")
 
-    if resp.status_code == 404:
-        return (f"Ollama API returned 404 for model '{model_name}'. "
-                "Confirm model name with `curl http://localhost:11434/models` or set OLLAMA_MODEL to a valid model.")
 
-    if not resp.ok:
-        return f"Ollama API error: {resp.status_code} {resp.text}"
-    
-    # 5) Extract the model's response field and parse it as JSON mapping id->reason
+def _extract_json_object(text: str):
     try:
-        j = resp.json()
+        return json.loads(text)
     except Exception:
-        # if top-level JSON parse fails, try to parse raw text
-        text_content = resp.text
-        try:
-            parsed = json.loads(text_content)
-            if isinstance(parsed, dict):
-                j = parsed
-            else:
-                j = None
-        except Exception:
-            j = None
-
-    text_content = None
-    if isinstance(j, dict):
-        # preferred shape: top-level 'response' contains a JSON string mapping ids->reasons
-        if 'response' in j and isinstance(j['response'], str):
-            text_content = j['response']
-        # fallbacks: 'output' or 'result' or 'choices'
-        elif 'output' in j and isinstance(j['output'], str):
-            text_content = j['output']
-        elif 'result' in j and isinstance(j['result'], str):
-            text_content = j['result']
-        elif 'choices' in j and isinstance(j['choices'], list) and j['choices']:
-            choice = j['choices'][0]
-            text_content = choice.get('text') or choice.get('content') or None
-        else:
-            # fallback to stringifying the whole JSON
-            try:
-                text_content = json.dumps(j)
-            except Exception:
-                text_content = str(j)
-    if not text_content:
-        text_content = resp.text
-
-    # Now parse the JSON mapping inside text_content
-    parsed_map = None
-    try:
-        parsed_map = json.loads(text_content)
-    except Exception:
-        # try extracting a JSON object substring
-        m = re.search(r"(\{.*\})", text_content, re.DOTALL)
+        m = re.search(r"(\{.*\})", text, re.DOTALL)
         if m:
             try:
-                parsed_map = json.loads(m.group(1))
+                return json.loads(m.group(1))
             except Exception:
-                parsed_map = None
+                return None
+    return None
 
+
+def parse_response(text_content: str):
+    parsed_map = _extract_json_object(text_content)
     if not parsed_map or not isinstance(parsed_map, dict):
-        return {"error": "could not parse id->reason JSON from model output", "raw": text_content}
+        raise ValueError("could not parse id->reason JSON from model output")
 
-    # Normalize keys to ints and collect ids
     id_to_reason = {}
     ids = []
     for k, v in parsed_map.items():
@@ -208,21 +141,18 @@ def recommend_movies(liked_movies: str, mood: str, db_engine: Engine):
             try:
                 ik = int(str(k).strip())
             except Exception:
-                # skip non-numeric keys
                 continue
         id_to_reason[ik] = str(v) if v is not None else ''
         ids.append(ik)
 
     if not ids:
-        return {"error": "model returned no numeric ids", "raw_parsed": parsed_map}
+        raise ValueError("model returned no numeric ids")
 
-    # Fetch records for these ids from DB and attach reasons
     try:
         rows = get_showtimes_by_ids(ids)
     except Exception as e:
-        return {"error": f"database error fetching ids: {e}", "ids": ids}
+        raise RuntimeError(f"database error fetching ids: {e}")
 
-    # Attach reason to each returned row; preserve ordering by showtime
     recs = []
     for r in rows:
         rid = r.get('id')
@@ -231,7 +161,30 @@ def recommend_movies(liked_movies: str, mood: str, db_engine: Engine):
             rr['reason'] = id_to_reason[rid]
             recs.append(rr)
 
-    # Limit to 5 recommendations
-    recs = recs[:5]
+    return recs[:5]
+
+
+def recommend_movies(liked_movies: str, mood: str, db_engine: Engine):
+    """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
+    try:
+        candidates = fetch_showtimes(days=7, limit=10)
+    except Exception as e:
+        return {"error": str(e)}
+
+    if not candidates:
+        return []
+
+    prompt = _build_prompt(liked_movies, mood, candidates, days=7)
+    # include provider selection via env var (default = ollama)
+    provider = os.getenv('LLM_PROVIDER')
+    try:
+        text_content = get_llm_response(prompt, provider=provider, max_tokens=512, temperature=0.7)
+    except Exception as e:
+        return {"error": str(e)}
+
+    try:
+        recs = parse_response(text_content)
+    except Exception as e:
+        return {"error": str(e), "raw": text_content}
 
     return recs

@@ -9,7 +9,6 @@ from recommendation.core import recommend_movies
 setup_database()
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-# CORS(app, resources={r"/*": {"origins": "http://your-frontend-domain.com"}})
 
 @app.route('/')
 def index():
