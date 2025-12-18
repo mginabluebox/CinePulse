@@ -69,6 +69,58 @@ def get_showtimes(interval_days: int = 14, engine=None):
         session.close()
 
 
+def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt_num_token: int, prompt: str, response: str, error_code: int = 0, engine=None):
+    """Insert a recommendation log row into recommendation_logs table.
+
+    Params are straightforward; `queried_at` should be a datetime or SQL expression like func.now().
+    This function is defensive and will raise DBError on failure.
+    """
+    session = get_session(engine)
+    try:
+        # Use a parameterized insert to avoid issues with quoting/size.
+        # If queried_at is None or 'now()', embed SQL now() so the DB sets the timestamp.
+        if queried_at is None or (isinstance(queried_at, str) and queried_at == "now()"):
+            stmt = text(
+                "INSERT INTO recommendation_logs (queried_at, api_name, model_name, prompt_num_token, prompt, response, error_code) "
+                "VALUES (now(), :api_name, :model_name, :prompt_num_token, :prompt, :response, :error_code)"
+            )
+            params = {
+                "api_name": api_name,
+                "model_name": model_name,
+                "prompt_num_token": prompt_num_token,
+                "prompt": prompt,
+                "response": response,
+                "error_code": error_code,
+            }
+            session.execute(stmt, params)
+        else:
+            stmt = text(
+                "INSERT INTO recommendation_logs (queried_at, api_name, model_name, prompt_num_token, prompt, response, error_code) "
+                "VALUES (:queried_at, :api_name, :model_name, :prompt_num_token, :prompt, :response, :error_code)"
+            )
+            session.execute(
+                stmt,
+                {
+                    "queried_at": queried_at,
+                    "api_name": api_name,
+                    "model_name": model_name,
+                    "prompt_num_token": prompt_num_token,
+                    "prompt": prompt,
+                    "response": response,
+                    "error_code": error_code,
+                },
+            )
+        session.commit()
+    except Exception as exc:
+        # Import DBError lazily to avoid top-level cycles
+        from errors import DBError
+
+        session.rollback()
+        raise DBError("Failed to insert recommendation log") from exc
+    finally:
+        session.close()
+
+
 def get_showtimes_by_ids(ids: Iterable[int], engine=None):
     """Fetch showtime rows matching the given list of ids.
 

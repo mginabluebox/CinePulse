@@ -31,12 +31,18 @@ def _dedupe_rows(rows):
     """Return a list of deduped rows keeping the earliest showing per cleaned title."""
     entries = []
     for m in rows:
+        # skip entries where tickets are sold out
+        ticket_link = (m.get('ticket_link') or '')
+        if isinstance(ticket_link, str) and ticket_link.strip().lower() == 'sold_out':
+            continue
+
         title_orig = (m.get('title') or '').strip()
         cleaned = _clean_title(title_orig)
         dt = _parse_show_datetime(m.get('showdate'), m.get('showtime'))
         entries.append({
             'cleaned': cleaned,
             'original': title_orig,
+            'ticket_link': ticket_link,
             'id': m.get('id'),
             'dt': dt,
             'showdate': m.get('showdate'),
@@ -67,7 +73,7 @@ def _dedupe_rows(rows):
     return candidates
 
 
-def fetch_showtimes(days: int = 7, limit: int = 10, engine=None):
+def fetch_showtimes(days: int = 7, limit: int = 15, engine=None):
     """Fetch showtimes from the DB and return up to `limit` candidate rows (deduped and ordered)."""
     try:
         # allow callers to provide an engine via DI
@@ -182,7 +188,7 @@ def parse_response(text_content: str, engine=None):
 def recommend_movies(liked_movies: str, mood: str, db_engine: Engine = None):
     """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
     # Step 1: fetch and dedupe showtimes (may raise on DB error)
-    candidates = fetch_showtimes(days=7, limit=10, engine=db_engine)
+    candidates = fetch_showtimes(days=7, limit=15, engine=db_engine)
     if not candidates:
         return []
 

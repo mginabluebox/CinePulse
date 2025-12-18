@@ -4,6 +4,15 @@ import json
 import requests
 from typing import Optional
 from errors import LLMError
+from database.setup_db import get_engine
+from database.queries import insert_recommendation_log
+
+
+# Try to import tiktoken for accurate token counts; fall back to simple estimate
+try:
+    import tiktoken
+except Exception:
+    tiktoken = None
 
 DEFAULT_OPENAI_TIMEOUT = 30
 DEFAULT_OLLAMA_TIMEOUT = 30
@@ -80,16 +89,75 @@ def call_llm(prompt: str, provider: Optional[str] = None, **kw):
     """
     provider = (provider or os.getenv("LLM_PROVIDER", "ollama")).lower()
     last_err = None
+
+    # determine model name from kw or env; provide a sane default so we always log something clear
+    model_name = kw.get('model')
+    if not model_name:
+        if provider == 'openai':
+            model_name = os.getenv('OPENAI_MODEL') or 'gpt-4o-mini'
+        else:
+            model_name = os.getenv('OLLAMA_MODEL') or 'llama3.1:8b'
+
+    # count tokens (best-effort)
+    def _count_tokens(text: str, model: str = None) -> int:
+        if tiktoken is not None:
+            try:
+                enc = tiktoken.encoding_for_model(model or 'gpt-4o-mini')
+                return len(enc.encode(text))
+            except Exception:
+                pass
+        # fallback heuristic: average 4 chars per token
+        return max(1, len(text) // 4)
+
+    # ensure we count tokens using a concrete model name
+    prompt_tokens = _count_tokens(prompt, model_name)
+
     for attempt in range(2):
         try:
             if provider == "openai":
-                return openai_generate(prompt, **kw)
+                resp = openai_generate(prompt, model=model_name, **kw)
             else:
-                return ollama_generate(prompt, **kw)
+                resp = ollama_generate(prompt, model=model_name, **kw)
+
+            # log successful call (error_code 0)
+            try:
+                engine = get_engine()
+                insert_recommendation_log(
+                    queried_at="now()",
+                    api_name=provider,
+                    model_name=model_name or '',
+                    prompt_num_token=prompt_tokens,
+                    prompt=prompt,
+                    response=resp if isinstance(resp, str) else json.dumps(resp),
+                    error_code=0,
+                    engine=engine,
+                )
+            except Exception:
+                # logging should not break normal flow
+                pass
+
+            return resp
         except Exception as e:
             last_err = e
+            # log the failure
+            try:
+                engine = get_engine()
+                insert_recommendation_log(
+                    queried_at="now()",
+                    api_name=provider,
+                    model_name=model_name or '',
+                    prompt_num_token=prompt_tokens,
+                    prompt=prompt,
+                    response=str(e),
+                    error_code=1,
+                    engine=engine,
+                )
+            except Exception:
+                pass
+
             # small backoff then retry once
             time.sleep(1)
             continue
+
     # Wrap the last error in an LLMError for callers to handle specifically
     raise LLMError(f"LLM call failed after retries: {last_err}") from last_err
