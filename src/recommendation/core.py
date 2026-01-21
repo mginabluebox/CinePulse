@@ -122,14 +122,14 @@ def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> st
     return prompt
 
 
-def get_llm_response(liked_movies: str, mood: str, candidates, provider: str = None, max_tokens: int = 512, temperature: float = 0.7, days: int = 7) -> str:
+def get_llm_response(liked_movies: str, mood: str, candidates, max_tokens: int = 512, temperature: float = 0.7, days: int = 7) -> str:
     """Build the prompt from inputs and call the configured LLM provider.
 
     This centralizes prompt construction so callers only pass high-level inputs.
     """
     prompt = _build_prompt(liked_movies, mood, candidates, days=days)
     try:
-        return call_llm(prompt, provider=provider, max_tokens=max_tokens, temperature=temperature)
+        return call_llm(prompt, max_tokens=max_tokens, temperature=temperature)
     except Exception as e:
         # Wrap or re-raise as LLMError for the HTTP boundary to map to 502
         raise LLMError(f"LLM provider error: {e}") from e
@@ -193,8 +193,7 @@ def recommend_movies(liked_movies: str, mood: str, db_engine: Engine = None):
         return []
 
     # Step 2: build prompt and call LLM (may raise on LLM/provider error)
-    provider = os.getenv('LLM_PROVIDER')
-    text_content = get_llm_response(liked_movies, mood, candidates, provider=provider, max_tokens=512, temperature=0.7, days=7)
+    text_content = get_llm_response(liked_movies, mood, candidates, max_tokens=512, temperature=0.7, days=7)
 
     # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
     recs = parse_response(text_content, engine=db_engine)
