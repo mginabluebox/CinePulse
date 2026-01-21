@@ -1,12 +1,10 @@
 import os
-import time
 import json
 import requests
 try:
     from openai import OpenAI
 except Exception:
     OpenAI = None
-from typing import Optional
 from errors import LLMError
 from database.setup_db import get_engine
 from database.queries import insert_recommendation_log

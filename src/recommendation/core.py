@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from datetime import datetime
 from sqlalchemy.engine import Engine
@@ -112,7 +111,7 @@ def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> st
         f"Below is a list of movies showing in the next {days} days. Each item includes only the ID, Title, "
         f"Director, and Synopsis (the ID is the database id for that showing).\n\n"
         f"{movies_list_text}\n\n"
-        "Task: From the above list, choose up to 5 movies that best match the user's recent likes and "
+        "Task: From the above list, choose at least 5 movies that best match the user's recent likes and "
         "current mood. For each recommended movie return a one-sentence reason. IMPORTANT: Address the user "
         "directly in each reason (use 'you' or 'your' rather than referring to the user in the third person). "
         "Return ONLY a single valid JSON object (no surrounding text) mapping the movie ID to the one-sentence reason. "
