@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultWrapper = document.getElementById('recommendResultWrapper');
     const clearBtn = document.getElementById('clearRecommend');
     const submitBtn = document.getElementById('submitRecommend');
-    const likedInput = document.getElementById('likedMovies');
     const moodInput = document.getElementById('mood');
     const cardDeck = document.getElementById('cardDeck');
 
@@ -202,10 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // wire up form and clear button
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const liked = (likedInput?.value || '').trim();
       const mood = (moodInput?.value || '').trim();
-      if (!liked && !mood) {
-        if (errEl) { errEl.textContent = 'Please enter something you liked or a mood.'; errEl.classList.remove('d-none'); }
+      if (!mood) {
+        if (errEl) { errEl.textContent = 'Please enter a mood.'; errEl.classList.remove('d-none'); }
         return;
       }
       if (errEl) errEl.classList.add('d-none');
@@ -218,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/recommend', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ liked_movies: liked, mood: mood })
+          body: JSON.stringify({ mood: mood })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || JSON.stringify(data));
@@ -233,10 +231,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    clearBtn?.addEventListener('click', () => {
+      clearBtn?.addEventListener('click', () => {
       clearCardDeck();
       if (resultWrapper) resultWrapper.classList.add('d-none');
-      if (likedInput) likedInput.value = '';
       if (moodInput) moodInput.value = '';
       if (errEl) errEl.classList.add('d-none');
     });

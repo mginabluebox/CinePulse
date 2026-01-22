@@ -22,10 +22,9 @@ engine = get_engine()
 @app.route('/api/recommend', methods=['POST'])
 def api_recommend():
     data = request.get_json(force=True)
-    liked = data.get('liked_movies', '') or ''
     mood = data.get('mood', '') or ''
     try:
-        result = recommend_movies(liked, mood, engine)
+        result = recommend_movies(mood, engine)
         # successful result should be a list of recommendation objects
         return jsonify(result), 200
     except Exception as e:

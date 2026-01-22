@@ -87,7 +87,7 @@ def fetch_showtimes(days: int = 7, limit: int = 15, engine=None):
     return candidates[:limit]
 
 
-def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> str:
+def _build_prompt(mood: str, candidates, days: int = 7) -> str:
     # Build a compact movies list text with only id, title, director, synopsis
     def _truncate(s: str, n: int = 300) -> str:
         if not s:
@@ -106,8 +106,7 @@ def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> st
     movies_list_text = "\n\n".join(movies_lines)
 
     prompt = (
-        f"You are a helpful cinema recommender. The user recently liked: \"{liked_movies}\" "
-        f"and is in the mood for: \"{mood}\".\n\n"
+        f"You are a movie recommender. The user is in the mood for: \"{mood}\".\n\n"
         f"Below is a list of movies showing in the next {days} days. Each item includes only the ID, Title, "
         f"Director, and Synopsis (the ID is the database id for that showing).\n\n"
         f"{movies_list_text}\n\n"
@@ -121,12 +120,12 @@ def _build_prompt(liked_movies: str, mood: str, candidates, days: int = 7) -> st
     return prompt
 
 
-def get_llm_response(liked_movies: str, mood: str, candidates, max_tokens: int = 512, temperature: float = 0.7, days: int = 7) -> str:
+def get_llm_response(mood: str, candidates, max_tokens: int = 512, temperature: float = 0.7, days: int = 7) -> str:
     """Build the prompt from inputs and call the configured LLM provider.
 
     This centralizes prompt construction so callers only pass high-level inputs.
     """
-    prompt = _build_prompt(liked_movies, mood, candidates, days=days)
+    prompt = _build_prompt(mood, candidates, days=days)
     try:
         return call_llm(prompt, max_tokens=max_tokens, temperature=temperature)
     except Exception as e:
@@ -184,7 +183,7 @@ def parse_response(text_content: str, engine=None):
     return recs[:5]
 
 
-def recommend_movies(liked_movies: str, mood: str, db_engine: Engine = None):
+def recommend_movies(mood: str, db_engine: Engine = None):
     """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
     # Step 1: fetch and dedupe showtimes (may raise on DB error)
     candidates = fetch_showtimes(days=7, limit=15, engine=db_engine)
@@ -192,7 +191,7 @@ def recommend_movies(liked_movies: str, mood: str, db_engine: Engine = None):
         return []
 
     # Step 2: build prompt and call LLM (may raise on LLM/provider error)
-    text_content = get_llm_response(liked_movies, mood, candidates, max_tokens=512, temperature=0.7, days=7)
+    text_content = get_llm_response(mood, candidates, max_tokens=512, temperature=0.7, days=7)
 
     # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
     recs = parse_response(text_content, engine=db_engine)

@@ -13,17 +13,55 @@
     <!-- Nav Tabs -->
     <ul class="nav nav-tabs" id="cinePulseTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="showtimes-tab" data-bs-toggle="tab" data-bs-target="#showtimes" type="button" role="tab" aria-controls="showtimes" aria-selected="true">Showtimes</button>
+            <button class="nav-link active" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" aria-controls="recommendations" aria-selected="true">Recommendations</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" aria-controls="recommendations" aria-selected="false">Recommendations</button>
+            <button class="nav-link" id="showtimes-tab" data-bs-toggle="tab" data-bs-target="#showtimes" type="button" role="tab" aria-controls="showtimes" aria-selected="false">Showtimes</button>
         </li>
     </ul>
 
     <!-- Tab Content -->
     <div class="tab-content" id="cinePulseTabsContent">
+        <!-- Recommendations Tab -->
+        <div class="tab-pane fade show active" id="recommendations" role="tabpanel" aria-labelledby="recommendations-tab">
+            
+            <div class="card mb-3">
+              <div class="card-body">
+                <form id="recommendForm" class="mb-0">
+                  <div class="mb-3">
+                    <label for="mood" class="form-label" >What do you feel like watching?</label>
+                    <input id="mood" class="form-control" rows="3" placeholder="e.g. something uplifting, a mind-bender, romantic comedy">
+                  </div>
+                  <div id="recommendError" class="text-danger small d-none mb-2"></div>
+                  <button id="submitRecommend" type="submit" class="btn btn-primary">Get recommendations</button>
+                </form>
+              </div>
+            </div>
+
+                        <div id="recommendResultWrapper" class="d-none">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="mb-0">Recommendations (swipe)</h5>
+                                    <div>
+                                        <button id="clearRecommend" class="btn btn-sm btn-secondary">Clear</button>
+                                    </div>
+                                </div>
+                                <p class="small text-muted">Swipe right to save / like, swipe left to dismiss. You can also click the Ticket button to open tickets.</p>
+                            </div>
+
+                            <div id="cardDeck" class="card-deck-wrapper">
+                                <!-- cards will be injected here -->
+                                <div id="noRecs" class="text-muted">No recommendations yet — submit the form above.</div>
+                            </div>
+                                            <div id="swipeSummary" class="mt-3 d-none">
+                                                <!-- summary table will be injected here after swipes finish -->
+                                            </div>
+                        </div>
+
+        </div>
+
         <!-- Showtimes Tab -->
-        <div class="tab-pane fade show active" id="showtimes" role="tabpanel" aria-labelledby="showtimes-tab">
+        <div class="tab-pane fade" id="showtimes" role="tabpanel" aria-labelledby="showtimes-tab">
             <h2 class="mt-3">Upcoming Movie Showtimes</h2>
             <table class="table table-striped">
                 <thead>
@@ -70,49 +108,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-
-        <!-- Recommendations Tab -->
-        <div class="tab-pane fade" id="recommendations" role="tabpanel" aria-labelledby="recommendations-tab">
-            <h2 class="mt-3">What to watch next?</h2>
-
-            <div class="card mb-3">
-              <div class="card-body">
-                <form id="recommendForm" class="mb-0">
-                  <div class="mb-3">
-                    <label for="likedMovies" class="form-label">Recently liked movies / directors / themes?</label>
-                    <textarea id="likedMovies" class="form-control" rows="3" placeholder="e.g. I liked Spirited Away and recent Miyazaki films..."></textarea>
-                  </div>
-                  <div class="mb-3">
-                    <label for="mood" class="form-label">What do you feel like watching?</label>
-                    <input id="mood" class="form-control" placeholder="e.g. something uplifting, a mind-bender, romantic comedy">
-                  </div>
-                  <div id="recommendError" class="text-danger small d-none mb-2"></div>
-                  <button id="submitRecommend" type="submit" class="btn btn-primary">Get recommendations</button>
-                </form>
-              </div>
-            </div>
-
-                        <div id="recommendResultWrapper" class="d-none">
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="mb-0">Recommendations (swipe)</h5>
-                                    <div>
-                                        <button id="clearRecommend" class="btn btn-sm btn-secondary">Clear</button>
-                                    </div>
-                                </div>
-                                <p class="small text-muted">Swipe right to save / like, swipe left to dismiss. You can also click the Ticket button to open tickets.</p>
-                            </div>
-
-                            <div id="cardDeck" class="card-deck-wrapper">
-                                <!-- cards will be injected here -->
-                                <div id="noRecs" class="text-muted">No recommendations yet — submit the form above.</div>
-                            </div>
-                                            <div id="swipeSummary" class="mt-3 d-none">
-                                                <!-- summary table will be injected here after swipes finish -->
-                                            </div>
-                        </div>
-
         </div>
 
     <!-- Bootstrap & JavaScript -->
