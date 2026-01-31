@@ -7,7 +7,10 @@
 # useful for handling different item types with a single interface
 import os
 import psycopg2
-from itemadapter import ItemAdapter
+try:
+    from database.setup_db import get_engine
+except Exception:
+    from src.database.setup_db import get_engine
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
 from datetime import datetime
@@ -17,22 +20,10 @@ load_dotenv(find_dotenv())
 
 class MetrographScraperPipeline:
     def open_spider(self, spider):
-        
-        # Read from environment variables
-        dbname = os.getenv('DB_NAME')
-        user = os.getenv('DB_USER')
-        password = os.getenv('DB_PASSWORD')
-        host = os.getenv('DB_HOST')
-        port=os.getenv("DB_PORT")
-
-        # Connect to the PostgreSQL database
-        self.conn = psycopg2.connect(
-            dbname=dbname,
-            user=user,
-            password=password,
-            host=host,
-            port=port
-        )
+        # Connect via SQLAlchemy engine to reuse env logic in setup_db.get_engine()
+        engine = get_engine()
+        # raw_connection() returns a DB-API (psycopg2) connection so existing cursor code still works
+        self.conn = engine.raw_connection()
         self.cur = self.conn.cursor()
 
     def close_spider(self, spider):
