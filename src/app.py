@@ -1,11 +1,9 @@
 from database.queries import get_showtimes
-from database.setup_db import get_engine, setup_database
+from database.setup_db import get_engine
 from flask import Flask, render_template, request, jsonify
 
 from bots.get_recommendation import recommend_movies
 from errors import LLMError, DBError, ParseError
-
-setup_database()
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
