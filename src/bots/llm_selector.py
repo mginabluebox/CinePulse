@@ -1,10 +1,9 @@
 import os
 import json
 import requests
-try:
-    from openai import OpenAI
-except Exception:
-    OpenAI = None
+from openai import OpenAI
+import tiktoken
+
 from errors import LLMError
 from database.setup_db import get_engine
 from database.queries import insert_recommendation_log
@@ -23,30 +22,26 @@ else:
 DEFAULT_OPENAI_TIMEOUT = 30
 DEFAULT_OLLAMA_TIMEOUT = 30
 
-# Try to import tiktoken for accurate token counts; fall back to simple estimate
-try:
-    import tiktoken
-except Exception:
-    tiktoken = None
-
-
-def openai_generate(prompt: str, model: str, max_tokens: int = 512, temperature: float = 0.7):
+def openai_generate(prompt: str, model: str, 
+                    max_tokens: int = 512, 
+                    temperature: float = 0.7):
     """
     Call OpenAI via the official Python client and return the assistant text.
     """
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is not set")
 
-    if OpenAI is None:
-        raise RuntimeError("openai package is not installed. Install with `pip install openai`")
-
-
     client = OpenAI(api_key=OPENAI_API_KEY)
 
     # Make request - let exceptions propagate to caller
     resp = client.chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {
+                "role": "user", 
+                "content": prompt
+            }
+        ],
         max_tokens=max_tokens,
         temperature=temperature,
     )
@@ -67,12 +62,20 @@ def openai_generate(prompt: str, model: str, max_tokens: int = 512, temperature:
     return str(resp)
 
 
-def ollama_generate(prompt: str, model: str, max_tokens: int = 512, temperature: float = 0.7):
+def ollama_generate(prompt: str, model: str, 
+                    max_tokens: int = 512, 
+                    temperature: float = 0.7):
     """
     Call Ollama local HTTP API and return the response text (handles common response shapes).
     """
 
-    payload = {"model": model, "prompt": prompt, "max_tokens": max_tokens, "temperature": temperature, "stream": False}
+    payload = {
+        "model": model, 
+        "prompt": prompt, 
+        "max_tokens": max_tokens, 
+        "temperature": temperature, 
+        "stream": False
+    }
     resp = requests.post(f"{OLLAMA_BASE}/generate", json=payload, timeout=DEFAULT_OLLAMA_TIMEOUT)
     resp.raise_for_status()
 
@@ -96,22 +99,23 @@ def ollama_generate(prompt: str, model: str, max_tokens: int = 512, temperature:
     return resp.text
 
 
-def call_llm(prompt: str, **kw):
+def call_llm(prompt: str, 
+             max_tokens: int = 512, 
+             temperature: float = 0.7):
     """Dispatch to the configured LLM provider. Provider can be 'openai' or 'ollama'.
 
     Retries once on error with a short backoff.
     Returns the raw text content from the model.
     """
-    # count tokens (best-effort)
+
     def _count_tokens(text: str, model: str = None) -> int:
-        if tiktoken is not None:
-            try:
-                enc = tiktoken.encoding_for_model(model or 'gpt-4o-mini')
-                return len(enc.encode(text))
-            except Exception:
-                pass
-        # fallback heuristic: average 4 chars per token
-        return max(1, len(text) // 4)
+        
+        enc = tiktoken.get_encoding('o200k_base')
+        
+        return len(enc.encode(text))
+
+        # # fallback heuristic: average 4 chars per token
+        # return max(1, len(text) // 4)
 
     # ensure we count tokens using a concrete model name
     prompt_tokens = _count_tokens(prompt, MODEL_NAME)
@@ -119,10 +123,10 @@ def call_llm(prompt: str, **kw):
     try:
         if LLM_PROVIDER == "openai":
             # print("Calling OpenAI LLM...") 
-            resp = openai_generate(prompt, MODEL_NAME, **kw)
+            resp = openai_generate(prompt, MODEL_NAME, max_tokens=max_tokens, temperature=temperature)
         elif LLM_PROVIDER == "ollama":
             # print("Calling Ollama LLM...") 
-            resp = ollama_generate(prompt, MODEL_NAME, **kw)
+            resp = ollama_generate(prompt, MODEL_NAME, max_tokens=max_tokens, temperature=temperature)
 
         # log successful call (error_code 0)
         try:

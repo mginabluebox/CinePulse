@@ -1,29 +1,37 @@
 from sqlalchemy import func, text
 from .setup_db import get_session
 from .models import Showtime
-from typing import List, Iterable, Optional
+from typing import Iterable, Optional
 
 
-def get_showtimes(interval_days: int = 14, engine=None):
+def get_showtimes(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        interval_days: Optional[int] = None, engine=None
+        ):
     """Fetch upcoming showtimes from the database using ORM.
 
     Args:
+        start_date: start date as a string or SQL expression (e.g., func.now()).
+        end_date: end date as a string or SQL expression.
         interval_days: how many days into the future to include (default: 14).
 
     Returns:
         A list of dictionaries describing upcoming showtimes.
     """
     session = get_session(engine)
+
+    if interval_days is not None:
+        if start_date is not None or end_date is not None:
+            raise ValueError("If interval_days is provided, start_date and end_date must be None")
+        start_date = func.now()
+        end_date = func.now() + text(f"interval '{int(interval_days)} days'")
+    else:
+        if start_date is None or end_date is None:
+            raise ValueError("Either both start_date and end_date or interval_days must be provided")
+
     try:
-        # Safely coerce to int and build a Postgres interval string
-        try:
-            days = int(interval_days)
-        except Exception:
-            days = 14
 
-        interval_sql = text(f"interval '{days} days'")
-
-        # Query the database for showtimes within the provided interval
         showtimes = session.query(
             Showtime.id,
             Showtime.title,
@@ -38,8 +46,8 @@ def get_showtimes(interval_days: int = 14, engine=None):
             Showtime.synopsis,
             Showtime.cinema,
         ).filter(
-            Showtime.show_time >= func.now(),
-            Showtime.show_time < func.now() + interval_sql,
+            Showtime.show_time >= start_date,
+            Showtime.show_time < end_date,
         ).order_by(Showtime.show_time.asc()).all()
 
         # Convert the result to a list of dictionaries for easier use in templates
@@ -47,16 +55,19 @@ def get_showtimes(interval_days: int = 14, engine=None):
             {
                 "id": row.id,
                 "title": row.title,
+
                 "showdate": row.showdate,
                 "showtime": row.showtime,
                 "show_day": row.show_day,
-                "ticket_link": row.ticket_link,
+
                 "director": row.director1,
                 "year": row.year,
                 "runtime": row.runtime,
                 "format": row.format,
                 "synopsis": row.synopsis,
+
                 "cinema": row.cinema,
+                "ticket_link": row.ticket_link,
             }
             for row in showtimes
         ]
@@ -65,6 +76,74 @@ def get_showtimes(interval_days: int = 14, engine=None):
         # the `recommendation` package's top-level `__init__` imports `core`.
         from errors import DBError
         raise DBError("Failed to fetch showtimes") from exc
+    finally:
+        session.close()
+
+
+def get_showtimes_by_ids(ids: Iterable[int], engine=None):
+    """Fetch showtime rows matching the given list of ids.
+
+    Args:
+        ids: iterable of integer ids
+
+    Returns:
+        List of dicts with the same shape as get_showtimes()
+    """
+    session = get_session(engine)
+    try:
+        if not ids:
+            return []
+
+        # ensure ids are ints
+        try:
+            ids_list = [int(i) for i in ids]
+        except Exception:
+            # fallback: try to coerce strings
+            ids_list = []
+            for i in ids:
+                try:
+                    ids_list.append(int(str(i).strip()))
+                except Exception:
+                    continue
+
+        showtimes = session.query(
+            Showtime.id,
+            Showtime.title,
+            func.to_char(Showtime.show_time, 'YYYY-MM-DD').label('showdate'),
+            func.to_char(Showtime.show_time, 'HH12:MI AM').label('showtime'),
+            Showtime.show_day,
+            Showtime.ticket_link,
+            Showtime.director1,
+            Showtime.year,
+            Showtime.runtime,
+            func.coalesce(Showtime.format, '-').label('format'),
+            Showtime.synopsis,
+            Showtime.cinema,
+        ).filter(Showtime.id.in_(ids_list)).order_by(Showtime.show_time.asc()).all()
+
+        return [
+            {
+                "id": row.id,
+                "title": row.title,
+
+                "showdate": row.showdate,
+                "showtime": row.showtime,
+                "show_day": row.show_day,
+
+                "director": row.director1,
+                "year": row.year,
+                "runtime": row.runtime,
+                "format": row.format,
+                "synopsis": row.synopsis,
+
+                "cinema": row.cinema,
+                "ticket_link": row.ticket_link,
+            }
+            for row in showtimes
+        ]
+    except Exception as exc:
+        from errors import DBError
+        raise DBError("Failed to fetch showtimes by ids") from exc
     finally:
         session.close()
 
@@ -117,70 +196,5 @@ def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt
 
         session.rollback()
         raise DBError("Failed to insert recommendation log") from exc
-    finally:
-        session.close()
-
-
-def get_showtimes_by_ids(ids: Iterable[int], engine=None):
-    """Fetch showtime rows matching the given list of ids.
-
-    Args:
-        ids: iterable of integer ids
-
-    Returns:
-        List of dicts with the same shape as get_showtimes()
-    """
-    session = get_session(engine)
-    try:
-        if not ids:
-            return []
-
-        # ensure ids are ints
-        try:
-            ids_list = [int(i) for i in ids]
-        except Exception:
-            # fallback: try to coerce strings
-            ids_list = []
-            for i in ids:
-                try:
-                    ids_list.append(int(str(i).strip()))
-                except Exception:
-                    continue
-
-        showtimes = session.query(
-            Showtime.id,
-            Showtime.title,
-            func.to_char(Showtime.show_time, 'YYYY-MM-DD').label('showdate'),
-            func.to_char(Showtime.show_time, 'HH12:MI AM').label('showtime'),
-            Showtime.show_day,
-            Showtime.ticket_link,
-            Showtime.director1,
-            Showtime.year,
-            Showtime.runtime,
-            func.coalesce(Showtime.format, '-').label('format'),
-            Showtime.synopsis,
-            Showtime.cinema,
-        ).filter(Showtime.id.in_(ids_list)).order_by(Showtime.show_time.asc()).all()
-
-        return [
-            {
-                "id": row.id,
-                "title": row.title,
-                "showdate": row.showdate,
-                "showtime": row.showtime,
-                "show_day": row.show_day,
-                "ticket_link": row.ticket_link,
-                "director": row.director1,
-                "year": row.year,
-                "runtime": row.runtime,
-                "format": row.format,
-                "synopsis": row.synopsis,
-                "cinema": row.cinema,
-            }
-            for row in showtimes
-        ]
-    except Exception as exc:
-        from errors import DBError
-        raise DBError("Failed to fetch showtimes by ids") from exc
     finally:
         session.close()

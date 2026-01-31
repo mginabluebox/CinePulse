@@ -1,28 +1,24 @@
 from database.queries import get_showtimes
 from database.setup_db import get_engine, setup_database
-from flask_cors import CORS
 from flask import Flask, render_template, request, jsonify
 
-from recommendation.core import recommend_movies
+from bots.get_recommendation import recommend_movies
 from errors import LLMError, DBError, ParseError
-import logging
 
-# Initialize the database
 setup_database()
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 @app.route('/')
 def index():
-    showtimes = get_showtimes(14)  # Fetch movie data
+    showtimes = get_showtimes(interval_days=14)  # Fetch movie data
     return render_template('index.html', showtimes=showtimes)
 
 engine = get_engine()
 
 @app.route('/api/recommend', methods=['POST'])
 def api_recommend():
-    data = request.get_json(force=True)
-    mood = data.get('mood', '') or ''
+    mood = request.get_json(force=True).get('mood') or ''
     try:
         result = recommend_movies(mood, engine)
         # successful result should be a list of recommendation objects

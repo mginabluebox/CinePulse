@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from sqlalchemy.engine import Engine
 from database.queries import get_showtimes, get_showtimes_by_ids
-from .llm import call_llm
+from .llm_selector import call_llm
 from errors import LLMError, DBError, ParseError
 
 
@@ -15,7 +15,8 @@ def _parse_show_datetime(showdate: str, showtime: str):
     if not showdate:
         return None
     if showtime:
-        for fmt in ("%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"):
+        for fmt in ("%Y-%m-%d %I:%M %p", 
+                    "%Y-%m-%d %H:%M"):
             try:
                 return datetime.strptime(f"{showdate} {showtime}", fmt)
             except Exception:
@@ -76,7 +77,7 @@ def fetch_showtimes(days: int = 7, limit: int = 15, engine=None):
     """Fetch showtimes from the DB and return up to `limit` candidate rows (deduped and ordered)."""
     try:
         # allow callers to provide an engine via DI
-        raw = get_showtimes(days, engine=engine)
+        raw = get_showtimes(interval_days=days, engine=engine)
     except Exception as e:
         raise DBError(f"Error fetching upcoming movies: {e}")
 
@@ -87,7 +88,7 @@ def fetch_showtimes(days: int = 7, limit: int = 15, engine=None):
     return candidates[:limit]
 
 
-def _build_prompt(mood: str, candidates, days: int = 7) -> str:
+def build_prompt(mood: str, candidates, days: int = 7) -> str:
     # Build a compact movies list text with only id, title, director, synopsis
     def _truncate(s: str, n: int = 300) -> str:
         if not s:
@@ -118,20 +119,6 @@ def _build_prompt(mood: str, candidates, days: int = 7) -> str:
         "If no movies match, return an empty JSON object {}. Do not include any explanations outside the JSON."
     )
     return prompt
-
-
-def get_llm_response(mood: str, candidates, max_tokens: int = 512, temperature: float = 0.7, days: int = 7) -> str:
-    """Build the prompt from inputs and call the configured LLM provider.
-
-    This centralizes prompt construction so callers only pass high-level inputs.
-    """
-    prompt = _build_prompt(mood, candidates, days=days)
-    try:
-        return call_llm(prompt, max_tokens=max_tokens, temperature=temperature)
-    except Exception as e:
-        # Wrap or re-raise as LLMError for the HTTP boundary to map to 502
-        raise LLMError(f"LLM provider error: {e}") from e
-
 
 def _extract_json_object(text: str):
     try:
@@ -185,13 +172,15 @@ def parse_response(text_content: str, engine=None):
 
 def recommend_movies(mood: str, db_engine: Engine = None):
     """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
+    
     # Step 1: fetch and dedupe showtimes (may raise on DB error)
     candidates = fetch_showtimes(days=7, limit=15, engine=db_engine)
     if not candidates:
         return []
 
     # Step 2: build prompt and call LLM (may raise on LLM/provider error)
-    text_content = get_llm_response(mood, candidates, max_tokens=512, temperature=0.7, days=7)
+    prompt = build_prompt(mood, candidates, days=7)
+    text_content = call_llm(prompt, max_tokens=512, temperature=0.7)
 
     # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
     recs = parse_response(text_content, engine=db_engine)
