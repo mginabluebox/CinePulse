@@ -5,12 +5,13 @@
 
 
 # useful for handling different item types with a single interface
-import os
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
 import psycopg2
-try:
-    from database.setup_db import get_engine
-except Exception:
-    from src.database.setup_db import get_engine
+from src.database.setup_db import get_engine
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
 from datetime import datetime, timezone
@@ -31,18 +32,24 @@ class MetrographScraperPipeline:
         self.conn.close()
     
     def process_item(self, item, spider):
-        spider.logger.debug(f"Pipeline: inserting item {(item.get('title'), item.get('show_time'))}")
+        
         try:
             title = item.get('title')
             year = item.get('year')
-            
-            # First: try UPDATE (match the unique index on lower(trim(title)), year)
+            cinema = 'METROGRAPH'
+
+            ## Update movies table
+            # First: try UPDATE existing entry in movies table
+            spider.logger.debug(f"Pipeline: updating item {(item.get('title'))} in movies table")
             self.cur.execute("""
                 UPDATE movies
                 SET
                     title = %s,
                     year = %s,
-                    updated_at = %s
+                    updated_at = %s,
+                    scraped_synopsis = %s,
+                    scraped_director1 = %s,
+                    scraped_cinema = %s
                 WHERE lower(trim(title)) = lower(trim(%s))
                   AND (year IS NOT DISTINCT FROM %s)
                 RETURNING id;
@@ -50,7 +57,9 @@ class MetrographScraperPipeline:
                 title,
                 year,
                 datetime.now(timezone.utc),
-
+                item.get('synopsis'),
+                item.get('director1'),
+                cinema,
                 title,
                 year,
             ))
@@ -59,21 +68,26 @@ class MetrographScraperPipeline:
             if row:
                 movie_id = row[0]
             else:
-                # Then: INSERT
+                # Then: INSERT a new entry
+                spider.logger.debug(f"Pipeline: inserting item {(item.get('title'))} into movies table")
                 self.cur.execute("""
-                    INSERT INTO movies (title, year, updated_at)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING id;
                 """, (
                     title,
                     year,
-                    datetime.now(timezone.utc)
+                    datetime.now(timezone.utc),
+                    item.get('synopsis'),
+                    item.get('director1'),
+                    'METROGRAPH'
                 ))
                 movie_id = self.cur.fetchone()[0]
     
-            cinema = 'METROGRAPH'
             
+            ## Update showtimes table
             # First: try UPDATE
+            spider.logger.debug(f"Pipeline: updating item {(item.get('title'))}, {(item.get('show_time'))} in showtimes table")
             self.cur.execute("""
                 UPDATE showtimes
                 SET
@@ -103,6 +117,7 @@ class MetrographScraperPipeline:
                 item.get('runtime'),
                 item.get('synopsis'),
                 cinema,
+
                 movie_id,
                 item.get('show_time'),
                 cinema,
@@ -112,6 +127,7 @@ class MetrographScraperPipeline:
             updated = self.cur.fetchone()
 
             if not updated:
+                spider.logger.debug(f"Pipeline: inserting item {(item.get('title'))}, {(item.get('show_time'))} into showtimes table")
                 self.cur.execute("""
                     INSERT INTO showtimes 
                     (movie_id, title, crawled_at, show_time, show_day, ticket_link, director1, director2, year, runtime, format, synopsis, cinema)
@@ -135,7 +151,7 @@ class MetrographScraperPipeline:
             self.conn.commit()
         except psycopg2.Error as e:
             # Log original DB error and rollback so subsequent commands can run
-            spider.logger.error(f"DB error inserting item {(item.get('title'), item.get('show_time'))}: {e}")
+            spider.logger.error(f"DB error inserting item {(item.get('title'))}: {e}")
             try:
                 self.conn.rollback()
             except Exception as re:
