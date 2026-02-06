@@ -39,6 +39,7 @@ class MetrographScraperPipeline:
             cinema = 'METROGRAPH'
 
             ## Update movies table
+            # TODO: add embeddings field
             # First: try UPDATE existing entry in movies table
             spider.logger.debug(f"Pipeline: updating item {(item.get('title'))} in movies table")
             self.cur.execute("""
@@ -86,67 +87,50 @@ class MetrographScraperPipeline:
     
             
             ## Update showtimes table
-            # First: try UPDATE
-            spider.logger.debug(f"Pipeline: updating item {(item.get('title'))}, {(item.get('show_time'))} in showtimes table")
+            spider.logger.debug(f"Pipeline: inserting/updating item {(item.get('title'))}, {(item.get('show_time'))} in showtimes table")
             self.cur.execute("""
-                UPDATE showtimes
-                SET
-                    crawled_at = %s,
-                    title = %s,
-                    year = %s,
-                    show_day = %s,
-                    ticket_link = %s,
-                    director1 = %s,
-                    director2 = %s,
-                    runtime = %s,
-                    synopsis = %s,
-                    cinema = %s
-                WHERE movie_id = %s
-                  AND show_time = %s
-                  AND cinema = %s
-                  AND COALESCE(format, 'UNKNOWN') = COALESCE(%s, 'UNKNOWN')
-                RETURNING id;
-            """, (
-                datetime.now(timezone.utc),
+            INSERT INTO showtimes (
+                movie_id,
                 title,
+                crawled_at,
+                show_time,
+                show_day,
+                ticket_link,
+                director1,
+                director2,
                 year,
+                runtime,
+                format,
+                synopsis,
+                cinema
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (movie_id, show_time, cinema, format)
+            DO UPDATE SET
+                crawled_at  = EXCLUDED.crawled_at,
+                title       = EXCLUDED.title,
+                year        = EXCLUDED.year,
+                show_day    = EXCLUDED.show_day,
+                ticket_link = EXCLUDED.ticket_link,
+                director1   = EXCLUDED.director1,
+                director2   = EXCLUDED.director2,
+                runtime     = EXCLUDED.runtime,
+                synopsis    = EXCLUDED.synopsis;
+            """, (
+                movie_id,
+                title,
+                datetime.now(timezone.utc),
+                item.get('show_time'),
                 item.get('show_day'),
                 item.get('ticket_link'),
                 item.get('director1'),
                 item.get('director2'),
+                year,
                 item.get('runtime'),
+                item.get('format'),
                 item.get('synopsis'),
                 cinema,
-
-                movie_id,
-                item.get('show_time'),
-                cinema,
-                item.get('format'),
             ))
-
-            updated = self.cur.fetchone()
-
-            if not updated:
-                spider.logger.debug(f"Pipeline: inserting item {(item.get('title'))}, {(item.get('show_time'))} into showtimes table")
-                self.cur.execute("""
-                    INSERT INTO showtimes 
-                    (movie_id, title, crawled_at, show_time, show_day, ticket_link, director1, director2, year, runtime, format, synopsis, cinema)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                """, (
-                    movie_id,
-                    title,
-                    datetime.now(timezone.utc),
-                    item.get('show_time'),
-                    item.get('show_day'),
-                    item.get('ticket_link'),
-                    item.get('director1'),
-                    item.get('director2'),
-                    year,
-                    item.get('runtime'),
-                    item.get('format'),
-                    item.get('synopsis'),
-                    cinema
-                ))
 
             self.conn.commit()
         except psycopg2.Error as e:

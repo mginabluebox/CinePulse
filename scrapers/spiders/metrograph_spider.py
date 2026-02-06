@@ -31,7 +31,7 @@ class MetrographSpider(scrapy.Spider):
                 # sometimes format doesn't exist
                 year, runtime = descript[-1].split('/')
                 year, runtime = year.strip(), runtime.strip()
-                format = None
+                format = 'UNKNOWN'
             
             runtime = int(runtime.replace('min','').strip())
 
