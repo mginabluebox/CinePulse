@@ -10,8 +10,8 @@
 BOT_NAME = "cinema_scraper"
 SPLASH_URL = 'http://localhost:8050'
 
-SPIDER_MODULES = ["spiders"]
-NEWSPIDER_MODULE = "spiders"
+SPIDER_MODULES = ["scrapers.spiders"]
+NEWSPIDER_MODULE = "scrapers.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -66,7 +66,7 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   "pipelines.MetrographScraperPipeline": 300,
+   "scrapers.pipelines.MetrographScraperPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
