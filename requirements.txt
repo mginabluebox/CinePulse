@@ -34,6 +34,7 @@ ollama==0.4.7
 packaging==24.2
 parsel==1.10.0
 pluggy==1.5.0
+pgvector==0.3.5
 Protego==0.4.0
 psycopg2==2.9.10
 pyasn1==0.6.1

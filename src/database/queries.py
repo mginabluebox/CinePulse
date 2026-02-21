@@ -1,7 +1,23 @@
 from sqlalchemy import func, text
 from .setup_db import get_session
-from .models import Showtime
+from .models import Showtime, Movie
 from typing import Iterable, Optional
+
+
+def get_movie_embeddings_by_id(
+        movie_ids: Iterable[int],
+        engine=None
+        ):
+    """Fetch movie embeddings based on movie_ids.
+
+    Args:
+        movie_ids: iterable of integer movie IDs.
+        engine: optional SQLAlchemy engine to use.
+
+    Returns:
+        A dictionary mapping movie_id to its embedding vector.
+    """
+    # TODO
 
 
 def get_showtimes(
@@ -15,6 +31,7 @@ def get_showtimes(
         start_date: start date as a string or SQL expression (e.g., func.now()).
         end_date: end date as a string or SQL expression.
         interval_days: how many days into the future to include (default: 14).
+        engine: optional SQLAlchemy engine to use.
 
     Returns:
         A list of dictionaries describing upcoming showtimes.
@@ -31,7 +48,7 @@ def get_showtimes(
             raise ValueError("Either both start_date and end_date or interval_days must be provided")
 
     try:
-
+        # TODO: add movie_id as a field to fetch
         showtimes = session.query(
             Showtime.id,
             Showtime.title,
@@ -72,8 +89,6 @@ def get_showtimes(
             for row in showtimes
         ]
     except Exception as exc:
-        # Import DBError lazily to avoid circular imports that occur when
-        # the `recommendation` package's top-level `__init__` imports `core`.
         from errors import DBError
         raise DBError("Failed to fetch showtimes") from exc
     finally:

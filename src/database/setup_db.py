@@ -11,8 +11,17 @@ Base = declarative_base()
 
 # Database connection setup
 def get_engine():
-    """Create a SQLAlchemy engine using environment variables."""
-    db_url = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    """
+    Create a SQLAlchemy engine.
+    """
+    db_user = os.getenv('DB_USER')
+    db_password = os.getenv('DB_PASSWORD')
+    db_host = os.getenv('DB_HOST')
+    db_name = os.getenv('DB_NAME')
+    db_port = os.getenv('DB_PORT')
+
+    host = f"{db_host}:{db_port}" if db_port else db_host
+    db_url = f"postgresql+psycopg2://{db_user}:{db_password}@{host}/{db_name}"
     return create_engine(db_url)
 
 # Create a session factory
@@ -23,7 +32,7 @@ def get_session(engine=None):
     Session = sessionmaker(bind=engine)
     return Session()
 
-# Initialize database (for migrations or creating tables)
-def setup_database():
-    engine = get_engine()
-    Base.metadata.create_all(engine)
+# # Initialize database (for migrations or creating tables)
+# def setup_database():
+#     engine = get_engine()
+#     Base.metadata.create_all(engine)
