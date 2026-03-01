@@ -11,7 +11,7 @@ Curates local cinema schedule and uses an LLM to recommend what to watch.
 - Flask UI/API: [src/app.py](src/app.py)
 - LLM selector (ollama or OpenAI) and recommendation: [src/bots/llm_selector.py](src/bots/llm_selector.py), [src/bots/get_recommendation.py](src/bots/get_recommendation.py)
 - Postgres (+ pgvector) + SQLAlchemy database: [src/database/models.py](src/database/models.py), [src/database/queries.py](src/database/queries.py)
-- Scrapy ETL: [scrapers/spiders/metrograph_spider.py](scrapers/spiders/metrograph_spider.py), [scrapers/pipelines.py](EGe  g (+ pgvector)Vector escrapers/pi( pelin(ollmama / OpenAI) es.py)
+- Scrapy ETL: [scrapers/spiders/metrograph_spider.py](scrapers/spiders/metrograph_spider.py), [scrapers/pipelines.py](scrapers/pipelines.py)
 
 ## Data flow
 1) Scrapy spider harvests showtimes → writes to Postgres.  
@@ -27,7 +27,7 @@ Requirements: Python 3.10+, Postgres with pgvector, optional OpenAI key.
 3) Run: `export FLASK_APP=src/app.py && flask run` (optional: `python scrapers/run_spider.py` to update showtimes; `python src/database/sync_embeddings.py` to embed film metadata).
 
 ## Next
-- Enhance film metadata (genre etc.) from TMDB. Add filtering for showtimes table.
+- Augment film metadata (genre etc.) from TMDB. Add filtering for showtimes table.
 - Add RAG to directly quote synopsis content in reason.
 - Add caching for stable recommendations per time window.
 - Expand to more cinemas.
