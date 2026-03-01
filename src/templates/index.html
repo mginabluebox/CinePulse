@@ -16,6 +16,9 @@
             <button class="nav-link active" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" aria-controls="recommendations" aria-selected="true">Recommendations</button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="movie-picks-tab" data-bs-toggle="tab" data-bs-target="#movie-picks" type="button" role="tab" aria-controls="movie-picks" aria-selected="false">Movie Picks</button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="showtimes-tab" data-bs-toggle="tab" data-bs-target="#showtimes" type="button" role="tab" aria-controls="showtimes" aria-selected="false">Search</button>
         </li>
     </ul>
@@ -59,6 +62,34 @@
                         </div>
 
         </div>
+
+                <!-- Movie Picks (embedding-based) Tab -->
+                <div class="tab-pane fade" id="movie-picks" role="tabpanel" aria-labelledby="movie-picks-tab">
+                        <div class="card mb-3 mt-3">
+                            <div class="card-body">
+                                <form id="movieRecommendForm" class="mb-0">
+                                    <div class="mb-3">
+                                        <label for="movieMood" class="form-label" >What do you feel like watching?</label>
+                                        <input id="movieMood" class="form-control" placeholder="e.g. something uplifting, a mind-bender, romantic comedy">
+                                    </div>
+                                    <div id="movieRecommendError" class="text-danger small d-none mb-2"></div>
+                                    <button id="submitMovieRecommend" type="submit" class="btn btn-primary">Get recommendations</button>
+                                    <button id="clearMovieRecommend" type="button" class="btn btn-secondary ms-2">Clear</button>
+                                </form>
+                            </div> 
+                        </div>
+
+                        <div id="movieRecommendResultWrapper" class="d-none">
+                                <div class="d-flex justify-content-between align-items-center mb-2" id="movieTopHeaderWrapper">
+                                    <h5 class="mb-0" id="movieTopHeader">Top matches</h5>
+                                </div>
+                                <p class="small text-muted" id="movieSwipeHint">Swipe: &larr; dislike, &rarr; like.</p>
+                                <div id="movieCards" class="card-deck-wrapper">
+                                        <div id="noMovieRecs" class="text-muted">No recommendations yet — submit the form above.</div>
+                                </div>
+                            <div id="movieSwipeSummary" class="mt-3 d-none"></div>
+                        </div>
+                </div>
 
         <!-- Showtimes Tab -->
         <div class="tab-pane fade" id="showtimes" role="tabpanel" aria-labelledby="showtimes-tab">

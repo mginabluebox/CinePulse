@@ -19,6 +19,8 @@ elif LLM_PROVIDER == "ollama":
 else:
     raise RuntimeError("LLM_PROVIDER must be either 'openai' or 'ollama'")
 
+OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+
 DEFAULT_OPENAI_TIMEOUT = 30
 DEFAULT_OLLAMA_TIMEOUT = 30
 
@@ -164,3 +166,25 @@ def call_llm(prompt: str,
             pass
 
         raise LLMError(f"LLM call failed: {e}") from e
+
+
+def generate_embedding(text: str):
+    """Generate an embedding vector for the given text using OpenAI embeddings.
+
+    This uses OPENAI_EMBED_MODEL and requires OPENAI_API_KEY to be set, regardless of
+    the primary chat provider.
+    """
+    if not text or not str(text).strip():
+        raise ValueError("Text for embedding must be non-empty")
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY is required for embeddings")
+
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    resp = client.embeddings.create(model=OPENAI_EMBED_MODEL, input=[str(text).strip()])
+    if not resp or not getattr(resp, "data", None):
+        raise LLMError("Embedding response missing data")
+
+    vector = getattr(resp.data[0], "embedding", None)
+    if not vector:
+        raise LLMError("Embedding vector missing in response")
+    return list(vector)
