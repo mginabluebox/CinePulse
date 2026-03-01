@@ -3,7 +3,9 @@
 Curates local cinema schedule and uses an LLM to recommend what to watch.
 
 **Live demo:** https://cinepulse-ct8r.onrender.com/  
-![App demo](assets/CinePulse_Demo_20260228.gif)
+<p align="center">
+  <img src="assets/CinePulse_Demo_20260228.gif" width="500" />
+</p>
 
 ## Stack
 - Flask UI/API: [src/app.py](src/app.py)
