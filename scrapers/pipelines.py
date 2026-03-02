@@ -39,7 +39,6 @@ class MetrographScraperPipeline:
             cinema = 'METROGRAPH'
 
             ## Update movies table
-            # TODO: add embeddings field
             # First: try UPDATE existing entry in movies table
             spider.logger.debug(f"Pipeline: updating item {(item.get('title'))} in movies table")
             self.cur.execute("""
@@ -50,7 +49,8 @@ class MetrographScraperPipeline:
                     updated_at = %s,
                     scraped_synopsis = %s,
                     scraped_director1 = %s,
-                    scraped_cinema = %s
+                    scraped_cinema = %s,
+                    scraped_image_url = %s
                 WHERE lower(trim(title)) = lower(trim(%s))
                   AND (year IS NOT DISTINCT FROM %s)
                 RETURNING id;
@@ -61,6 +61,7 @@ class MetrographScraperPipeline:
                 item.get('synopsis'),
                 item.get('director1'),
                 cinema,
+                item.get('image_url'),
                 title,
                 year,
             ))
@@ -72,8 +73,8 @@ class MetrographScraperPipeline:
                 # Then: INSERT a new entry
                 spider.logger.debug(f"Pipeline: inserting item {(item.get('title'))} into movies table")
                 self.cur.execute("""
-                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema, scraped_image_url)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING id;
                 """, (
                     title,
@@ -81,7 +82,8 @@ class MetrographScraperPipeline:
                     datetime.now(timezone.utc),
                     item.get('synopsis'),
                     item.get('director1'),
-                    'METROGRAPH'
+                    'METROGRAPH',
+                    item.get('image_url'),
                 ))
                 movie_id = self.cur.fetchone()[0]
     
@@ -96,6 +98,7 @@ class MetrographScraperPipeline:
                 show_time,
                 show_day,
                 ticket_link,
+                image_url,
                 director1,
                 director2,
                 year,
@@ -104,7 +107,7 @@ class MetrographScraperPipeline:
                 synopsis,
                 cinema
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (movie_id, show_time, cinema, format)
             DO UPDATE SET
                 crawled_at  = EXCLUDED.crawled_at,
@@ -112,6 +115,7 @@ class MetrographScraperPipeline:
                 year        = EXCLUDED.year,
                 show_day    = EXCLUDED.show_day,
                 ticket_link = EXCLUDED.ticket_link,
+                image_url   = EXCLUDED.image_url,
                 director1   = EXCLUDED.director1,
                 director2   = EXCLUDED.director2,
                 runtime     = EXCLUDED.runtime,
@@ -123,6 +127,7 @@ class MetrographScraperPipeline:
                 item.get('show_time'),
                 item.get('show_day'),
                 item.get('ticket_link'),
+                item.get('image_url'),
                 item.get('director1'),
                 item.get('director2'),
                 year,

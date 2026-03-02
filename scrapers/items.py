@@ -8,5 +8,14 @@ import scrapy
 
 class MetrographScraperItem(scrapy.Item):
     # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    title = scrapy.Field()
+    show_time = scrapy.Field()
+    show_day = scrapy.Field()
+    ticket_link = scrapy.Field()
+    image_url = scrapy.Field()
+    director1 = scrapy.Field()
+    director2 = scrapy.Field()
+    year = scrapy.Field()
+    runtime = scrapy.Field()
+    format = scrapy.Field()
+    synopsis = scrapy.Field()
