@@ -15,6 +15,7 @@ class Showtime(Base):
     show_day = Column(String(20))
     cinema = Column(String, nullable=False)
     ticket_link = Column(Text)
+    image_url = Column(Text)
 
     # Movie level fields
     title = Column(String(255), nullable=False)
@@ -42,6 +43,7 @@ class Movie(Base):
     scraped_synopsis = Column(Text)
     scraped_director1 = Column(String(255))
     scraped_cinema = Column(String)
+    scraped_image_url = Column(Text)
 
     embedding = Column(Vector(1536), nullable=True)
     embedding_model = Column(String(255), nullable=True)

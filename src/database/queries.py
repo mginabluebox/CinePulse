@@ -48,7 +48,6 @@ def get_showtimes(
             raise ValueError("Either both start_date and end_date or interval_days must be provided")
 
     try:
-        # TODO: add movie_id as a field to fetch
         showtimes = session.query(
             Showtime.id,
             Showtime.title,
@@ -56,6 +55,7 @@ def get_showtimes(
             func.to_char(Showtime.show_time, 'HH12:MI AM').label('showtime'),
             Showtime.show_day,
             Showtime.ticket_link,
+            Showtime.image_url,
             Showtime.director1,
             Showtime.year,
             Showtime.runtime,
@@ -85,6 +85,7 @@ def get_showtimes(
 
                 "cinema": row.cinema,
                 "ticket_link": row.ticket_link,
+                "image_url": row.image_url,
             }
             for row in showtimes
         ]
@@ -128,6 +129,7 @@ def get_showtimes_by_ids(ids: Iterable[int], engine=None):
             func.to_char(Showtime.show_time, 'HH12:MI AM').label('showtime'),
             Showtime.show_day,
             Showtime.ticket_link,
+            Showtime.image_url,
             Showtime.director1,
             Showtime.year,
             Showtime.runtime,
@@ -153,6 +155,7 @@ def get_showtimes_by_ids(ids: Iterable[int], engine=None):
 
                 "cinema": row.cinema,
                 "ticket_link": row.ticket_link,
+                "image_url": row.image_url,
             }
             for row in showtimes
         ]

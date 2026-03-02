@@ -10,6 +10,9 @@ class MetrographSpider(scrapy.Spider):
             ### MOVIE-LEVEL INFO
             ## Get movie title
             title = block.css('h3.movie_title a::text').get(default="").strip()
+
+            # Poster image used on the listing
+            image_url = block.css('img::attr(src)').get()
             
             # the last 2 h5s are always director, year / runtime / format
             descript = block.css('h5::text').getall()
@@ -125,6 +128,8 @@ class MetrographSpider(scrapy.Spider):
                     'show_time': timestamp,
                     'show_day': show_day,
                     'ticket_link': ticket_link,
+
+                    'image_url': image_url,
 
                     'director1': director1,
                     'director2': director2,
