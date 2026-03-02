@@ -53,6 +53,7 @@ def get_random_movies_with_future_showtimes(limit: int = 30, engine=None) -> Lis
                 Movie.year,
                 Movie.scraped_director1.label('director'),
                 Movie.scraped_synopsis.label('synopsis'),
+                Movie.scraped_image_url.label('scraped_image_url'),
                 Movie.embedding,
                 func.min(Showtime.show_time).label('first_show_time'),
             )
@@ -74,8 +75,10 @@ def get_random_movies_with_future_showtimes(limit: int = 30, engine=None) -> Lis
                 "year": r.year,
                 "director": r.director,
                 "synopsis": r.synopsis,
+                "scraped_image_url": r.scraped_image_url,
                 "embedding": list(r.embedding) if r.embedding is not None else None,
                 "first_show_time": r.first_show_time,
+                "image_url": r.scraped_image_url,
             }
             for r in rows
         ]
@@ -100,6 +103,7 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None) -
                 Movie.year,
                 Movie.scraped_director1.label('director'),
                 Movie.scraped_synopsis.label('synopsis'),
+                Movie.scraped_image_url.label('scraped_image_url'),
                 Movie.embedding,
                 func.min(Showtime.show_time).label('first_show_time'),
             )
@@ -123,6 +127,7 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None) -
                 "year": r.year,
                 "director": r.director,
                 "synopsis": r.synopsis,
+                "scraped_image_url": r.scraped_image_url,
                 "embedding": list(r.embedding) if r.embedding is not None else None,
                 "first_show_time": r.first_show_time,
             }
@@ -161,6 +166,7 @@ def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie
                 func.coalesce(Showtime.format, '-').label('format'),
                 Showtime.synopsis,
                 Showtime.cinema,
+                Showtime.image_url,
                 Showtime.show_time.label('raw_show_time'),
             )
             .filter(
@@ -191,6 +197,7 @@ def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie
                     "synopsis": row.synopsis,
                     "cinema": row.cinema,
                     "ticket_link": row.ticket_link,
+                    "image_url": row.image_url,
                     "raw_show_time": row.raw_show_time,
                 }
             )
@@ -237,6 +244,7 @@ def get_showtimes(
             raise ValueError("Either both start_date and end_date or interval_days must be provided")
 
     try:
+        # TODO: add movie_id as a field to fetch
         showtimes = session.query(
             Showtime.id,
             Showtime.title,

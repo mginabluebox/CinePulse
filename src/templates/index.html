@@ -13,10 +13,7 @@
     <!-- Nav Tabs -->
     <ul class="nav nav-tabs" id="cinePulseTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" aria-controls="recommendations" aria-selected="true">Recommendations</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="movie-picks-tab" data-bs-toggle="tab" data-bs-target="#movie-picks" type="button" role="tab" aria-controls="movie-picks" aria-selected="false">Movie Picks</button>
+            <button class="nav-link active" id="movie-picks-tab" data-bs-toggle="tab" data-bs-target="#movie-picks" type="button" role="tab" aria-controls="movie-picks" aria-selected="true">Movie Picks</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="showtimes-tab" data-bs-toggle="tab" data-bs-target="#showtimes" type="button" role="tab" aria-controls="showtimes" aria-selected="false">Search</button>
@@ -25,46 +22,8 @@
 
     <!-- Tab Content -->
     <div class="tab-content" id="cinePulseTabsContent">
-        <!-- Recommendations Tab -->
-        <div class="tab-pane fade show active" id="recommendations" role="tabpanel" aria-labelledby="recommendations-tab">
-            
-            <div class="card mb-3">
-              <div class="card-body">
-                <form id="recommendForm" class="mb-0">
-                  <div class="mb-3">
-                    <label for="mood" class="form-label" >What do you feel like watching?</label>
-                    <input id="mood" class="form-control" rows="3" placeholder="e.g. something uplifting, a mind-bender, romantic comedy">
-                  </div>
-                  <div id="recommendError" class="text-danger small d-none mb-2"></div>
-                  <button id="submitRecommend" type="submit" class="btn btn-primary">Get recommendations</button>
-                </form>
-              </div>
-            </div>
-
-                        <div id="recommendResultWrapper" class="d-none">
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="mb-0">Recommendations (swipe)</h5>
-                                    <div>
-                                        <button id="clearRecommend" class="btn btn-sm btn-secondary">Clear</button>
-                                    </div>
-                                </div>
-                                <p class="small text-muted">Swipe right to save / like, swipe left to dismiss. You can also click the Ticket button to open tickets.</p>
-                            </div>
-
-                            <div id="cardDeck" class="card-deck-wrapper">
-                                <!-- cards will be injected here -->
-                                <div id="noRecs" class="text-muted">No recommendations yet — submit the form above.</div>
-                            </div>
-                                            <div id="swipeSummary" class="mt-3 d-none">
-                                                <!-- summary table will be injected here after swipes finish -->
-                                            </div>
-                        </div>
-
-        </div>
-
                 <!-- Movie Picks (embedding-based) Tab -->
-                <div class="tab-pane fade" id="movie-picks" role="tabpanel" aria-labelledby="movie-picks-tab">
+                <div class="tab-pane fade show active" id="movie-picks" role="tabpanel" aria-labelledby="movie-picks-tab">
                         <div class="card mb-3 mt-3">
                             <div class="card-body">
                                 <form id="movieRecommendForm" class="mb-0">
@@ -89,7 +48,7 @@
                                 </div>
                             <div id="movieSwipeSummary" class="mt-3 d-none"></div>
                         </div>
-                </div>
+        </div>
 
         <!-- Showtimes Tab -->
         <div class="tab-pane fade" id="showtimes" role="tabpanel" aria-labelledby="showtimes-tab">

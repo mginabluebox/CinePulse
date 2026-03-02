@@ -14,22 +14,11 @@ def index():
 
 engine = get_engine()
 
+# Archived legacy endpoint: /api/recommend previously used showtime-based LLM flow.
+# Keeping route for compatibility but returning 410 to signal deprecation.
 @app.route('/api/recommend', methods=['POST'])
 def api_recommend():
-    mood = request.get_json(force=True).get('mood') or ''
-    try:
-        result = recommend_movies(mood, engine)
-        # successful result should be a list of recommendation objects
-        return jsonify(result), 200
-    except Exception as e:
-        # Log the full exception for server-side debugging
-        app.logger.exception('Error in /api/recommend')
-        msg = str(e)
-        # Map typed upstream errors to 502 (LLM/DB/parse) while leaving others as 500
-        status = 500
-        if isinstance(e, (LLMError, DBError, ParseError)):
-            status = 502
-        return jsonify({'error': msg}), status
+    return jsonify({'error': 'This endpoint is archived; use /api/recommend_movies instead.'}), 410
 
 
 @app.route('/api/recommend_movies', methods=['POST'])

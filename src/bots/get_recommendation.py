@@ -60,6 +60,7 @@ def _dedupe_rows(rows):
             'runtime': m.get('runtime'),
             'format': m.get('format'),
             'synopsis': m.get('synopsis'),
+            'image_url': m.get('image_url'),
         })
 
     best_by_title = {}
@@ -353,6 +354,7 @@ def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
         ]
 
         similarity_score = float(meta.get('similarity', 0.0))
+        poster_url = meta.get('scraped_image_url') or next((s.get('image_url') for s in st_list if s.get('image_url')), None)
         results.append({
             'id': mid,  # for swipe handling on the frontend
             'movie_id': mid,
@@ -364,6 +366,7 @@ def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
             'reason': reason,
             'showtimes': st_list,
             'cinemas': cinemas_payload,
+            'scraped_image_url': poster_url,
         })
 
     return results

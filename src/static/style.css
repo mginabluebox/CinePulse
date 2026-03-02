@@ -12,7 +12,7 @@ h1 {
     position: relative;
     width: 100%;
     max-width: 720px;
-    height: 420px;
+    height: 520px;
     margin: 0 auto 1rem auto;
 } 
 
@@ -34,6 +34,32 @@ h1 {
     flex-direction: column;
     justify-content: space-between;
     overflow: hidden;
+    user-select: none;
+}
+
+.swipe-card * {
+    user-select: none;
+}
+
+.swipe-card img {
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+.card-img-wrapper {
+    width: 100%;
+    max-height: 220px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f5f5f5;
+    margin-bottom: 10px;
+}
+
+.swipe-card-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
 }
 
 .swipe-card .title {
@@ -66,10 +92,10 @@ h1 {
 }
 
 .swipe-card.like {
-    border: 2px solid rgba(40, 167, 69, 0.6);
+    border: 3px solid rgba(40, 167, 69, 0.75);
 }
 .swipe-card.nope {
-    border: 2px solid rgba(220, 53, 69, 0.6);
+    border: 3px solid rgba(220, 53, 69, 0.75);
 }
 
 .card-stack-count {
