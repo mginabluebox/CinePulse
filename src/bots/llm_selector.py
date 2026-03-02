@@ -101,9 +101,10 @@ def ollama_generate(prompt: str, model: str,
     return resp.text
 
 
-def call_llm(prompt: str, 
-             max_tokens: int = 512, 
-             temperature: float = 0.7):
+def call_llm(prompt: str,
+             max_tokens: int = 512,
+             temperature: float = 0.7,
+             log_calls: bool = True):
     """Dispatch to the configured LLM provider. Provider can be 'openai' or 'ollama'.
 
     Retries once on error with a short backoff.
@@ -131,39 +132,41 @@ def call_llm(prompt: str,
             resp = ollama_generate(prompt, MODEL_NAME, max_tokens=max_tokens, temperature=temperature)
 
         # log successful call (error_code 0)
-        try:
-            engine = get_engine()
-            insert_recommendation_log(
-                queried_at="now()",
-                api_name=LLM_PROVIDER,
-                model_name=MODEL_NAME or '',
-                prompt_num_token=prompt_tokens,
-                prompt=prompt,
-                response=resp if isinstance(resp, str) else json.dumps(resp),
-                error_code=0,
-                engine=engine,
-            )
-        except Exception:
-            # logging should not break normal flow
-            pass
+        if log_calls:
+            try:
+                engine = get_engine()
+                insert_recommendation_log(
+                    queried_at="now()",
+                    api_name=LLM_PROVIDER,
+                    model_name=MODEL_NAME or '',
+                    prompt_num_token=prompt_tokens,
+                    prompt=prompt,
+                    response=resp if isinstance(resp, str) else json.dumps(resp),
+                    error_code=0,
+                    engine=engine,
+                )
+            except Exception:
+                # logging should not break normal flow
+                pass
 
         return resp
     except Exception as e:
         # log the failure and raise an LLMError
-        try:
-            engine = get_engine()
-            insert_recommendation_log(
-                queried_at="now()",
-                api_name=LLM_PROVIDER,
-                model_name=MODEL_NAME or '',
-                prompt_num_token=prompt_tokens,
-                prompt=prompt,
-                response=str(e),
-                error_code=1,
-                engine=engine,
-            )
-        except Exception:
-            pass
+        if log_calls:
+            try:
+                engine = get_engine()
+                insert_recommendation_log(
+                    queried_at="now()",
+                    api_name=LLM_PROVIDER,
+                    model_name=MODEL_NAME or '',
+                    prompt_num_token=prompt_tokens,
+                    prompt=prompt,
+                    response=str(e),
+                    error_code=1,
+                    engine=engine,
+                )
+            except Exception:
+                pass
 
         raise LLMError(f"LLM call failed: {e}") from e
 

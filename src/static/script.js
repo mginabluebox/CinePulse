@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (movieTopHeader) movieTopHeader.classList.remove('d-none');
     if (movieSwipeHint) movieSwipeHint.classList.remove('d-none');
     if (movieTopHeader && movieTopHeader.parentElement) movieTopHeader.parentElement.classList.remove('d-none');
+    if (movieCards) movieCards.classList.remove('d-none');
   }
 
   function renderMovieSwipeSummary() {
@@ -252,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (movieTopHeader) movieTopHeader.classList.remove('d-none');
     if (movieTopHeader && movieTopHeader.parentElement) movieTopHeader.parentElement.classList.remove('d-none');
     if (movieSwipeHint) movieSwipeHint.classList.remove('d-none');
+    if (movieCards) movieCards.classList.remove('d-none');
 
     // render top item last so the first recommendation appears on top
     items.slice().reverse().forEach((it, idx) => {
@@ -350,13 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
       (movieSwipeState.likes || []).forEach(i => { if (i && typeof i.id !== 'undefined') final[i.id] = Object.assign({}, i, { liked: true }); });
     }
     const rows = Object.values(final);
-    let html = `<h5>Swipe Summary</h5><table class="table table-striped"><thead><tr><th>Title</th><th>Similarity</th><th>Liked</th><th>Showtimes</th></tr></thead><tbody>`;
+    let html = `<h5>Swipe Summary</h5><table class="table table-striped"><thead><tr><th>Title</th><th>Reason</th><th>Liked</th><th>Showtimes</th></tr></thead><tbody>`;
     rows.forEach(m => {
       const liked = m.liked ? 'Yes' : 'No';
-      const sim = typeof m.similarity === 'number' ? m.similarity.toFixed(2) : '–';
       const st = Array.isArray(m.showtimes) ? m.showtimes.slice(0,5) : [];
-      const stHtml = st.map(s => `${esc(s.showdate)} ${esc(s.showtime)}`).join('<br>') || '<span class="text-muted">None</span>';
-      html += `<tr><td>${esc(m.title)}</td><td>${sim}</td><td>${liked}</td><td>${stHtml}</td></tr>`;
+      const stHtml = st.map(s => {
+        const link = s.ticket_link && s.ticket_link !== 'sold_out'
+          ? `<a class="btn btn-sm btn-primary" href="${escAttr(s.ticket_link)}" target="_blank">${esc(s.cinema || 'Tickets')}</a>`
+          : '<span class="text-danger">Sold Out</span>';
+        const dow = s.show_day ? ` (${esc(s.show_day)})` : '';
+        return `<div class="mb-1">${esc(s.showdate)}${dow} ${esc(s.showtime)} ${link}</div>`;
+      }).join('') || '<span class="text-muted">None</span>';
+      html += `<tr><td>${esc(m.title)}</td><td>${esc(m.reason || '')}</td><td>${liked}</td><td>${stHtml}</td></tr>`;
     });
     html += '</tbody></table>';
     movieSwipeSummary.innerHTML = html;

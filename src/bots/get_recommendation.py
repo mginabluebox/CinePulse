@@ -180,7 +180,7 @@ def parse_response(text_content: str, engine=None):
     return recs[:5]
 
 
-def recommend_movies(mood: str, db_engine: Engine = None):
+def recommend_movies(mood: str, db_engine: Engine = None, log_calls: bool = True):
     """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
     
     # Step 1: fetch and dedupe showtimes (may raise on DB error)
@@ -190,7 +190,7 @@ def recommend_movies(mood: str, db_engine: Engine = None):
 
     # Step 2: build prompt and call LLM (may raise on LLM/provider error)
     prompt = build_prompt(mood, candidates, days=7)
-    text_content = call_llm(prompt, max_tokens=512, temperature=0.7)
+    text_content = call_llm(prompt, max_tokens=512, temperature=0.7, log_calls=log_calls)
 
     # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
     recs = parse_response(text_content, engine=db_engine)
@@ -285,7 +285,8 @@ def _parse_movie_reason_map(text_content: str) -> Dict[int, str]:
 def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
                                   candidate_pool: int = 30,
                                   top_k: int = 5,
-                                  showtimes_per_movie: int = 5):
+                                  showtimes_per_movie: int = 5,
+                                  log_calls: bool = True):
     """Recommend movies using embedding similarity and return movie-level cards.
 
     Flow:
