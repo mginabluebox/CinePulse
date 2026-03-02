@@ -130,8 +130,10 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv-test
 env/
 venv/
+venv-test/
 ENV/
 env.bak/
 venv.bak/
@@ -175,3 +177,4 @@ cython_debug/
 tests/
 archive/
 .github/
+requirements-test.txt
