@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const movieResultWrapper = document.getElementById('movieRecommendResultWrapper');
   const movieClearBtn = document.getElementById('clearMovieRecommend');
   const movieSubmitBtn = document.getElementById('submitMovieRecommend');
-  const movieMoodInput = document.getElementById('movieMood');
+  const moviePreferenceInput = document.getElementById('moviePreference');
   const movieCards = document.getElementById('movieCards');
   const movieSwipeSummary = document.getElementById('movieSwipeSummary');
   const movieTopHeader = document.getElementById('movieTopHeader');
@@ -178,12 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (movieForm) {
     movieForm.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      const mood = (movieMoodInput && movieMoodInput.value || '').trim();
-      if (!mood) { if (movieErrEl) { movieErrEl.textContent = 'Please enter a mood.'; movieErrEl.classList.remove('d-none'); } return; }
+      const preference = (moviePreferenceInput && moviePreferenceInput.value || '').trim();
+      if (!preference) { if (movieErrEl) { movieErrEl.textContent = 'Please enter a preference.'; movieErrEl.classList.remove('d-none'); } return; }
       if (movieErrEl) movieErrEl.classList.add('d-none');
       if (movieSubmitBtn) { movieSubmitBtn.disabled = true; movieSubmitBtn.textContent = 'Thinking...'; }
       try {
-        const res = await fetch('/api/recommend_movies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mood }) });
+        const res = await fetch('/api/recommend_movies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preference }) });
         const data = await res.json();
         if (!res.ok) { const msg = (data && data.error) ? data.error : 'Request failed'; if (movieErrEl) { movieErrEl.textContent = msg; movieErrEl.classList.remove('d-none'); } return; }
         renderMovieCards(Array.isArray(data) ? data : []);
@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     movieClearBtn.addEventListener('click', () => {
       clearMovieCards();
       if (movieResultWrapper) movieResultWrapper.classList.add('d-none');
-      if (movieMoodInput) movieMoodInput.value = '';
+      if (moviePreferenceInput) moviePreferenceInput.value = '';
     });
   }
 

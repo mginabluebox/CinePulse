@@ -23,9 +23,9 @@ def api_recommend():
 
 @app.route('/api/recommend_movies', methods=['POST'])
 def api_recommend_movies():
-    mood = request.get_json(force=True).get('mood') or ''
+    preference = request.get_json(force=True).get('preference') or ''
     try:
-        result = recommend_movies_by_embedding(mood, engine)
+        result = recommend_movies_by_embedding(preference, engine)
         return jsonify(result), 200
     except Exception as e:
         app.logger.exception('Error in /api/recommend_movies')

@@ -96,7 +96,7 @@ def fetch_showtimes(days: int = 7, limit: int = 15, engine=None):
     return candidates[:limit]
 
 
-def build_prompt(mood: str, candidates, days: int = 7) -> str:
+def build_prompt(preference: str, candidates, days: int = 7) -> str:
     # Build a compact movies list text with only id, title, director, synopsis
     def _truncate(s: str, n: int = 300) -> str:
         if not s:
@@ -181,7 +181,7 @@ def parse_response(text_content: str, engine=None):
     return recs[:5]
 
 
-def recommend_movies(mood: str, db_engine: Engine = None, log_calls: bool = True):
+def recommend_movies(preference: str, db_engine: Engine = None, log_calls: bool = True):
     """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
     
     # Step 1: fetch and dedupe showtimes (may raise on DB error)
@@ -190,7 +190,7 @@ def recommend_movies(mood: str, db_engine: Engine = None, log_calls: bool = True
         return []
 
     # Step 2: build prompt and call LLM (may raise on LLM/provider error)
-    prompt = build_prompt(mood, candidates, days=7)
+    prompt = build_prompt(preference, candidates, days=7)
     text_content = call_llm(prompt, max_tokens=512, temperature=0.7, log_calls=log_calls)
 
     # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
@@ -233,7 +233,7 @@ def _score_candidates_by_similarity(query_vec: List[float], candidates: List[Dic
     return scored[:top_n]
 
 
-def build_movie_prompt(mood: str, candidates: List[Dict[str, Any]]) -> str:
+def build_movie_prompt(preference: str, candidates: List[Dict[str, Any]]) -> str:
     def _truncate(s: str, n: int = 300) -> str:
         if not s:
             return ''
@@ -251,12 +251,32 @@ def build_movie_prompt(mood: str, candidates: List[Dict[str, Any]]) -> str:
     movies_list_text = "\n\n".join(movies_lines)
 
     prompt = (
-        f"You are a movie recommender. The user mood is: \"{mood}\".\n\n"
-        f"Below is a list of candidate movies that have upcoming showtimes. Each item includes MovieID, Title, Director, and Synopsis.\n\n"
-        f"{movies_list_text}\n\n"
-        "Task: From the above list, choose at least 5 movies that best match the user's mood. For each recommended movie, return a one-sentence reason. "
-        "IMPORTANT: Use the MovieID as the JSON key. Address the user directly in each reason. Return ONLY a valid JSON object (no extra text) mapping MovieID -> reason. "
-        "Example: {\"123\": \"1-2 sentences of reason.\", \"456\": \"Another 1-2 sentences.\"}. If no movies match, return {}."
+        "You are a movie recommender. Your task is to select five movies from a candidate list that best match the user's preference. \n\n"
+        
+        "Definition of a good recommendation:\n"
+        "A movie matches the user preference if its theme or tone align with the emotional intent of the preference. Strong, direct alignment is preferred over weak or indirect connections.\n\n"
+        
+        "Selection rules:\n"
+        "- Select EXACTLY 5 movies.\n"
+        "- You MUST select only from the provided MovieIDs.\n"
+        "- Do NOT invent or modify MovieIDs.\n"
+        "- Only include movies that strongly match the preference first. If fewer than 5 movies strongly match the preference, include the next best candidates to reach 5 movies.\n\n"
+        
+        "Output rules:\n"
+        "- Return EXACTLY ONE valid JSON object with no additional text.\n"
+        "- Do NOT add explanations, notes, or comments outside the JSON.\n"
+        "- The response must start with '{' and end with '}'.\n"
+        "- Format: {\"MovieID\": \"Reason\", ...}\n"
+        "- Each reason must be 1-2 sentences, max 30 words.\n"
+        "- Address the user directly in each reason (use 'you' or 'your' rather than third person).\n\n"
+
+        "Example of correct format:\n"
+        "{\"123\": \"1-2 sentences of reason why this movie matches your preference.\", \"456\": \"Another 1-2 sentences of reason why this movie matches your preference.\"}. \n\n"
+        
+        f"User preference: \"{preference}\"\n\n"
+
+        "Candidate movies:\n"
+        f"{movies_list_text}"
     )
     return prompt
 
@@ -283,7 +303,7 @@ def _parse_movie_reason_map(text_content: str) -> Dict[int, str]:
     return id_to_reason
 
 
-def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
+def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
                                   candidate_pool: int = 30,
                                   top_k: int = 5,
                                   showtimes_per_movie: int = 5,
@@ -292,7 +312,7 @@ def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
 
     Flow:
     1) Fetch all movies that still have future showtimes (with embeddings).
-    2) Embed the user's mood/query once and score all candidates by cosine similarity.
+    2) Embed the user's preference/query once and score all candidates by cosine similarity.
     3) Take the top 30 by similarity and ask the LLM to pick the best 5 with reasons.
     4) Fetch up to 5 upcoming showtimes for the LLM-selected movies (earliest→latest).
     """
@@ -304,7 +324,7 @@ def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
         return []
 
     # Step 2: embed the user query
-    query_vec_raw = generate_embedding(mood)
+    query_vec_raw = generate_embedding(preference)
     query_vec = [float(x) for x in (query_vec_raw or [])]
     if not query_vec:
         return []
@@ -315,8 +335,8 @@ def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
         return []
 
     # Step 4: ask LLM to pick the best subset (up to 5)
-    prompt = build_movie_prompt(mood, top_scored)
-    text_content = call_llm(prompt, max_tokens=512, temperature=0.7, log_calls=log_calls)
+    prompt = build_movie_prompt(preference, top_scored)
+    text_content = call_llm(prompt, max_tokens=512, temperature=0, log_calls=log_calls)
     id_to_reason = _parse_movie_reason_map(text_content)
 
     # Preserve LLM order, cap at 5
