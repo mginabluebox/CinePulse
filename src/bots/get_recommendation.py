@@ -241,10 +241,10 @@ def build_movie_prompt(mood: str, candidates: List[Dict[str, Any]]) -> str:
         return s if len(s) <= n else s[:n].rsplit(' ', 1)[0] + '...'
 
     movies_lines = []
-    for i, m in enumerate(candidates, 1):
+    for m in candidates:
         synopsis = _truncate(m.get('synopsis') or '', 300)
         movies_lines.append(
-            f"{i}. MovieID: {m.get('movie_id') or ''}  Title: {m.get('title') or ''}\n"
+            f"MovieID: {m.get('movie_id') or ''}  Title: {m.get('title') or ''}\n"
             f"   Director: {m.get('director') or ''}\n"
             f"   Synopsis: {synopsis}\n"
         )
