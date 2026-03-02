@@ -4,7 +4,7 @@ Curates local cinema schedule and uses an LLM to recommend what to watch.
 
 **Live demo:** https://cinepulse-ct8r.onrender.com/  
 <p align="center">
-  <img src="assets/CinePulse_Demo_20260228.gif" width="500" />
+  <img src="assets/CinePulse_Demo_20260301.gif" width="500" />
 </p>
 
 ## Stack
@@ -15,8 +15,7 @@ Curates local cinema schedule and uses an LLM to recommend what to watch.
 
 ## Data flow
 1) Scrapy spider harvests showtimes → writes to Postgres.  
-2) Recommendation API pulls deduped showtimes (earliest not-sold-out per cleaned title).  
-3) Two-stage recommendation pipeline: user preferences are embedded and compared to film embeddings via cosine similarity to retrieve 30 candidate movies, then an LLM re-ranks and outputs the top 5 recommendations in structured JSON.
+2) Two-stage recommendation pipeline: user preferences are embedded and compared to film embeddings via cosine similarity to retrieve top-K candidate movies, then an LLM re-ranks and outputs the top 5 recommendations in structured JSON.
 4) UI renders recommendations with reasons + upcoming showtimes.
 
 ## Quickstart
