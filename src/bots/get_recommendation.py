@@ -316,7 +316,7 @@ def recommend_movies_by_embedding(mood: str, db_engine: Engine = None,
 
     # Step 4: ask LLM to pick the best subset (up to 5)
     prompt = build_movie_prompt(mood, top_scored)
-    text_content = call_llm(prompt, max_tokens=512, temperature=0.7)
+    text_content = call_llm(prompt, max_tokens=512, temperature=0.7, log_calls=log_calls)
     id_to_reason = _parse_movie_reason_map(text_content)
 
     # Preserve LLM order, cap at 5
