@@ -13,7 +13,7 @@
     <!-- Nav Tabs -->
     <ul class="nav nav-tabs" id="cinePulseTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="movie-picks-tab" data-bs-toggle="tab" data-bs-target="#movie-picks" type="button" role="tab" aria-controls="movie-picks" aria-selected="true">Movie Picks</button>
+            <button class="nav-link active" id="movie-picks-tab" data-bs-toggle="tab" data-bs-target="#movie-picks" type="button" role="tab" aria-controls="movie-picks" aria-selected="true">Recommend</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="showtimes-tab" data-bs-toggle="tab" data-bs-target="#showtimes" type="button" role="tab" aria-controls="showtimes" aria-selected="false">Search</button>
@@ -32,7 +32,7 @@
                                         <input id="moviePreference" class="form-control" placeholder="e.g. something uplifting, a mind-bender, romantic comedy">
                                     </div>
                                     <div id="movieRecommendError" class="text-danger small d-none mb-2"></div>
-                                    <button id="submitMovieRecommend" type="submit" class="btn btn-primary">Get movie picks</button>
+                                    <button id="submitMovieRecommend" type="submit" class="btn btn-primary">Get recommendations</button>
                                     <button id="clearMovieRecommend" type="button" class="btn btn-secondary ms-2">Clear</button>
                                 </form>
                             </div> 
@@ -52,52 +52,102 @@
 
         <!-- Showtimes Tab -->
         <div class="tab-pane fade" id="showtimes" role="tabpanel" aria-labelledby="showtimes-tab">
-           
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Show Date</th>
-                        <th>Show Time</th>
-                        <th>Day</th>
-                        <th>Director</th>
-                        <th>Year</th>
-                        <th>Runtime</th>
-                        <th>Format</th>
-                        <th>Tickets</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for movie in showtimes %}
-                    <tr>
-                        <td>
-                            <a data-bs-toggle="collapse" href="#collapse{{ loop.index }}" role="button" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
-                                {{ movie.title }}
-                            </a>
-                            <div class="collapse" id="collapse{{ loop.index }}">
-                                <div class="card card-body">
-                                    {{ movie.synopsis }}
+            <div class="mt-3 mb-3">
+                <form id="showtimeSearchForm" class="row g-2 align-items-center">
+                    <div class="col-sm-8 col-md-9">
+                        <input type="text" class="form-control" id="showtimeSearchInput" placeholder="Search for movies">
+                    </div>
+                    <div class="col-sm-4 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary d-flex align-items-center justify-content-center px-3" id="showtimeSearchButton" aria-label="Search">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10.001 5 5 0 0 1 0 10z"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="showtimeSearchClear">Clear</button>
+                    </div>
+                </form>
+                <div id="showtimeSearchError" class="text-danger small mt-1 d-none"></div>
+                <div id="showtimeLoading" class="text-muted small mt-2 d-none">Loading results...</div>
+            </div>
+
+            <div id="showtimeEmptyState" class="text-muted mt-3 d-none">No results found.</div>
+
+            <div class="accordion" id="showtimeAccordion">
+                {% if grouped_showtimes %}
+                    {% for movie in grouped_showtimes %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ loop.index }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                                <div class="w-100">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-semibold">{{ movie.title }}</span>
+                                        <span class="text-muted small">
+                                            {% if movie.year %}{{ movie.year }}{% endif %}
+                                            {% if movie.runtime %} • {{ movie.runtime }} min{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="text-muted small">{{ movie.director }}</div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#showtimeAccordion">
+                            <div class="accordion-body">
+                                {% if movie.image_url %}
+                                    <div class="mb-3 text-center">
+                                        <img src="{{ movie.image_url }}" alt="{{ movie.title }} poster" class="img-fluid rounded">
+                                    </div>
+                                {% endif %}
+                                {% if movie.synopsis %}<p class="mb-3">{{ movie.synopsis }}</p>{% endif %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Time</th>
+                                                <th>Day</th>
+                                                <th>Format</th>
+                                                <th>Ticket</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for st in movie.showtimes %}
+                                            <tr>
+                                                <td>{{ st.showdate }}</td>
+                                                <td>{{ st.showtime }}</td>
+                                                <td>{{ st.show_day }}</td>
+                                                <td>{{ st.format }}</td>
+                                                <td>
+                                                    {% if st.ticket_link == "sold_out" %}
+                                                        <span class="text-danger">Sold Out</span>
+                                                    {% else %}
+                                                        <a href="{{ st.ticket_link }}" target="_blank" class="btn btn-sm btn-primary">{{ st.cinema }}</a>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </td>
-                        <td>{{ movie.showdate }}</td>
-                        <td>{{ movie.showtime }}</td>
-                        <td>{{ movie.show_day }}</td>
-                        <td>{{ movie.director }}</td>
-                        <td>{{ movie.year }}</td>
-                        <td>{{ movie.runtime }} min</td>
-                        <td>{{ movie.format }}</td>
-                        <td>
-                            {% if movie.ticket_link == "sold_out" %}
-                                <span class="text-danger">Sold Out</span>
-                            {% else %}
-                                <a href="{{ movie.ticket_link }}" target="_blank" class="btn btn-primary">{{ movie.cinema }}</a>
-                            {% endif %}
-                        </td>
-                    </tr>
+                        </div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
+                {% else %}
+                    <p class="text-muted mt-3">No upcoming showtimes.</p>
+                {% endif %}
+            </div>
+
+            {% if grouped_showtimes %}
+            <script id="initialShowtimesData" type="application/json">{{ grouped_showtimes|tojson }}</script>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mt-3 d-none" id="showtimePagination">
+                <div class="small text-muted" id="showtimePageInfo"></div>
+                <div class="btn-group" role="group" aria-label="Showtime pagination">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="showtimePrevPage">Prev</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="showtimeNextPage">Next</button>
+                </div>
+            </div>
         </div>
 
     <!-- Bootstrap & JavaScript -->

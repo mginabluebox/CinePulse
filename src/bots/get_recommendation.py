@@ -390,3 +390,61 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
         })
 
     return results
+
+
+def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
+                                  top_n: int = 30,
+                                  showtimes_per_movie: int = 20):
+    """Return upcoming showtimes grouped by movie, ranked via cosine similarity to the query.
+
+    This is a lightweight retrieval-only flow (no LLM rerank). It embeds the user query,
+    scores all movies with future showtimes by cosine similarity, and returns the top set
+    with their showtimes.
+    """
+
+    q = (query or '').strip()
+    if not q:
+        return []
+
+    # Fetch candidates that have future showtimes and embeddings
+    candidates = get_movies_with_future_showtimes(engine=db_engine)
+    candidates = [c for c in candidates if c.get('embedding')]
+    if not candidates:
+        return []
+
+    # Embed query and score
+    query_vec_raw = generate_embedding(q)
+    query_vec = [float(x) for x in (query_vec_raw or [])]
+    if not query_vec:
+        return []
+
+    scored = _score_candidates_by_similarity(query_vec, candidates, top_n=top_n)
+    ids = [c['movie_id'] for c in scored]
+    if not ids:
+        return []
+
+    showtime_map = get_future_showtimes_for_movie_ids(ids, limit_per_movie=showtimes_per_movie, engine=db_engine)
+
+    results = []
+    for c in scored:
+        mid = c.get('movie_id')
+        st_list = showtime_map.get(mid, []) if mid is not None else []
+        if not st_list:
+            continue
+
+        poster_url = c.get('scraped_image_url') or next((s.get('image_url') for s in st_list if s.get('image_url')), None)
+        runtime = c.get('runtime') or (st_list[0].get('runtime') if st_list else None)
+
+        results.append({
+            'movie_id': mid,
+            'title': c.get('title'),
+            'director': c.get('director'),
+            'year': c.get('year'),
+            'runtime': runtime,
+            'synopsis': c.get('synopsis'),
+            'image_url': poster_url,
+            'similarity': float(c.get('similarity', 0.0)),
+            'showtimes': st_list,
+        })
+
+    return results
