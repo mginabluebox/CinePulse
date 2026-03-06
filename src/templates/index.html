@@ -143,9 +143,15 @@
 
             <div class="d-flex justify-content-between align-items-center mt-3 d-none" id="showtimePagination">
                 <div class="small text-muted" id="showtimePageInfo"></div>
-                <div class="btn-group" role="group" aria-label="Showtime pagination">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="showtimePrevPage">Prev</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="showtimeNextPage">Next</button>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="btn-group" role="group" aria-label="Showtime pagination">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="showtimePrevPage">Prev</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="showtimeNextPage">Next</button>
+                    </div>
+                    <div class="input-group input-group-sm" style="width: 130px;">
+                        <input type="number" min="1" class="form-control" id="showtimePageInput" aria-label="Page number">
+                        <button class="btn btn-outline-secondary" type="button" id="showtimePageGo">Go</button>
+                    </div>
                 </div>
             </div>
         </div>

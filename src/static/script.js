@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const showtimePageInfo = document.getElementById('showtimePageInfo');
   const showtimePrevPage = document.getElementById('showtimePrevPage');
   const showtimeNextPage = document.getElementById('showtimeNextPage');
+  const showtimePageInput = document.getElementById('showtimePageInput');
+  const showtimePageGo = document.getElementById('showtimePageGo');
   const initialShowtimeDataEl = document.getElementById('initialShowtimesData');
   let initialShowtimeData = [];
   try {
@@ -37,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const SHOWTIME_PAGE_SIZE = 10;
   let showtimeResults = null;
   let showtimePage = 1;
+  let showtimeTotalPages = 1;
 
   // Simple runtime storage for swipes
   window._swipeResults = { likes: [], dislikes: [] };
@@ -132,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateShowtimePagination(total, page, pageSize) {
     if (!showtimePagination || !showtimePageInfo || !showtimePrevPage || !showtimeNextPage) return;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    showtimeTotalPages = totalPages;
     if (total <= pageSize) {
       showtimePagination.classList.add('d-none');
       return;
@@ -142,6 +146,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showtimePageInfo.textContent = `Showing ${start}-${end} of ${total}`;
     showtimePrevPage.disabled = page <= 1;
     showtimeNextPage.disabled = page >= totalPages;
+    if (showtimePageInput) {
+      showtimePageInput.value = page;
+      showtimePageInput.min = 1;
+      showtimePageInput.max = totalPages;
+    }
   }
 
   function renderShowtimePage(page) {
@@ -513,6 +522,26 @@ document.addEventListener('DOMContentLoaded', () => {
   if (showtimeNextPage) {
     showtimeNextPage.addEventListener('click', () => {
       renderShowtimePage(showtimePage + 1);
+    });
+  }
+
+  if (showtimePageGo) {
+    showtimePageGo.addEventListener('click', () => {
+      if (!showtimePageInput) return;
+      const val = parseInt(showtimePageInput.value, 10);
+      const target = Number.isFinite(val) ? Math.min(Math.max(1, val), showtimeTotalPages) : showtimePage;
+      renderShowtimePage(target);
+    });
+  }
+
+  if (showtimePageInput) {
+    showtimePageInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const val = parseInt(showtimePageInput.value, 10);
+        const target = Number.isFinite(val) ? Math.min(Math.max(1, val), showtimeTotalPages) : showtimePage;
+        renderShowtimePage(target);
+      }
     });
   }
 
