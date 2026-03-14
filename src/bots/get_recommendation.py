@@ -307,7 +307,9 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
                                   candidate_pool: int = 30,
                                   top_k: int = 5,
                                   showtimes_per_movie: int = 5,
-                                  log_calls: bool = True):
+                                  log_calls: bool = True,
+                                  run_id: str = None,
+                                  session_token: str = None):
     """Recommend movies using embedding similarity and return movie-level cards.
 
     Flow:
@@ -336,7 +338,7 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
 
     # Step 4: ask LLM to pick the best subset (up to 5)
     prompt = build_movie_prompt(preference, top_scored)
-    text_content = call_llm(prompt, max_tokens=512, temperature=0, log_calls=log_calls)
+    text_content = call_llm(prompt, max_tokens=512, temperature=0, log_calls=log_calls, run_id=run_id, session_token=session_token)
     id_to_reason = _parse_movie_reason_map(text_content)
 
     # Preserve LLM order, cap at 5

@@ -363,7 +363,7 @@ def get_showtimes_by_ids(ids: Iterable[int], engine=None):
         session.close()
 
 
-def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt_num_token: int, prompt: str, response: str, error_code: int = 0, engine=None):
+def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt_num_token: int, prompt: str, response: str, error_code: int = 0, run_id: Optional[str] = None, session_token: Optional[str] = None, engine=None):
     """Insert a recommendation log row into recommendation_logs table.
 
     Params are straightforward; `queried_at` should be a datetime or SQL expression like func.now().
@@ -375,8 +375,8 @@ def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt
         # If queried_at is None or 'now()', embed SQL now() so the DB sets the timestamp.
         if queried_at is None or (isinstance(queried_at, str) and queried_at == "now()"):
             stmt = text(
-                "INSERT INTO recommendation_logs (queried_at, api_name, model_name, prompt_num_token, prompt, response, error_code) "
-                "VALUES (now(), :api_name, :model_name, :prompt_num_token, :prompt, :response, :error_code)"
+                "INSERT INTO recommendation_logs (queried_at, api_name, model_name, prompt_num_token, prompt, response, error_code, run_id, session_token) "
+                "VALUES (now(), :api_name, :model_name, :prompt_num_token, :prompt, :response, :error_code, :run_id, :session_token)"
             )
             params = {
                 "api_name": api_name,
@@ -385,12 +385,14 @@ def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt
                 "prompt": prompt,
                 "response": response,
                 "error_code": error_code,
+                "run_id": run_id,
+                "session_token": session_token,
             }
             session.execute(stmt, params)
         else:
             stmt = text(
-                "INSERT INTO recommendation_logs (queried_at, api_name, model_name, prompt_num_token, prompt, response, error_code) "
-                "VALUES (:queried_at, :api_name, :model_name, :prompt_num_token, :prompt, :response, :error_code)"
+                "INSERT INTO recommendation_logs (queried_at, api_name, model_name, prompt_num_token, prompt, response, error_code, run_id, session_token) "
+                "VALUES (:queried_at, :api_name, :model_name, :prompt_num_token, :prompt, :response, :error_code, :run_id, :session_token)"
             )
             session.execute(
                 stmt,
@@ -402,6 +404,8 @@ def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt
                     "prompt": prompt,
                     "response": response,
                     "error_code": error_code,
+                    "run_id": run_id,
+                    "session_token": session_token,
                 },
             )
         session.commit()
@@ -411,5 +415,51 @@ def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt
 
         session.rollback()
         raise DBError("Failed to insert recommendation log") from exc
+    finally:
+        session.close()
+
+
+def insert_recommendation_feedback(run_id: Optional[str],
+                                   session_token: Optional[str],
+                                   movie_id: int,
+                                   liked: bool,
+                                   decision_ms: Optional[int] = None,
+                                   similarity: Optional[float] = None,
+                                   title: Optional[str] = None,
+                                   year: Optional[int] = None,
+                                   engine=None):
+    """Insert a user feedback row (like/dislike) into recommendation_feedback.
+
+    Table is expected to exist with columns:
+    run_id (text), session_token (text), movie_id (int), liked (bool), decision_ms (int),
+    similarity (numeric), title (text), year (int), created_at (timestamp default now()).
+    """
+    session = get_session(engine)
+    try:
+        stmt = text(
+            """
+            INSERT INTO recommendation_feedback
+            (run_id, session_token, movie_id, liked, decision_ms, similarity, title, year, created_at)
+            VALUES (:run_id, :session_token, :movie_id, :liked, :decision_ms, :similarity, :title, :year, now())
+            """
+        )
+        session.execute(
+            stmt,
+            {
+                "run_id": run_id,
+                "session_token": session_token,
+                "movie_id": int(movie_id) if movie_id is not None else None,
+                "liked": bool(liked),
+                "decision_ms": int(decision_ms) if decision_ms is not None else None,
+                "similarity": float(similarity) if similarity is not None else None,
+                "title": title,
+                "year": int(year) if year is not None else None,
+            },
+        )
+        session.commit()
+    except Exception as exc:
+        from errors import DBError
+        session.rollback()
+        raise DBError("Failed to insert recommendation feedback") from exc
     finally:
         session.close()

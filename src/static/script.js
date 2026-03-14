@@ -40,11 +40,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let showtimeResults = null;
   let showtimePage = 1;
   let showtimeTotalPages = 1;
+  let currentRunId = null;
 
   // Simple runtime storage for swipes
   window._swipeResults = { likes: [], dislikes: [] };
   window._swipeLog = [];
   const movieSwipeState = { likes: [], dislikes: [], log: [] };
+  const swipeStartTimes = new WeakMap();
+
+  function ensureSessionToken() {
+    const key = 'cinepulse_session_token';
+    let tok = localStorage.getItem(key);
+    if (!tok) {
+      tok = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+      localStorage.setItem(key, tok);
+    }
+    return tok;
+  }
+  const sessionToken = ensureSessionToken();
 
   const esc = (s) => String(s || '').replace(/[&<>\"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const escAttr = (s) => encodeURI(String(s || ''));
@@ -186,6 +199,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (movieCards) movieCards.classList.remove('d-none');
   }
 
+  function logFeedback(payload, liked, decisionMs) {
+    const body = {
+      run_id: currentRunId,
+      movie_id: payload.movie_id || payload.id,
+      liked: !!liked,
+      decision_ms: decisionMs,
+      session_token: sessionToken,
+      similarity: payload.similarity,
+      title: payload.title,
+      year: payload.year,
+    };
+    fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => {});
+  }
+
   function attachMovieDragHandlers(card) {
     let startX = 0, startY = 0, currentX = 0, currentY = 0, dragging = false;
     const threshold = 120;
@@ -200,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ev.target.closest && ev.target.closest('a')) return;
       card.setPointerCapture(ev.pointerId);
       startX = ev.clientX; startY = ev.clientY; dragging = true; card.style.transition = 'none';
+      swipeStartTimes.set(card, Date.now());
     });
 
     card.addEventListener('pointermove', (ev) => {
@@ -232,6 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const liked = dx > 0;
           (liked ? movieSwipeState.likes : movieSwipeState.dislikes).push(payload);
           movieSwipeState.log.push({ id: payload.id, liked, payload });
+          const startedAt = swipeStartTimes.get(card);
+          const decisionMs = startedAt ? (Date.now() - startedAt) : undefined;
+          logFeedback(payload, liked, decisionMs);
           card.remove();
           if (movieCards && movieCards.querySelectorAll('.swipe-card').length === 0) renderMovieSwipeSummary();
         }, 300);
@@ -440,10 +475,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (movieErrEl) movieErrEl.classList.add('d-none');
       if (movieSubmitBtn) { movieSubmitBtn.disabled = true; movieSubmitBtn.textContent = 'Thinking...'; }
       try {
-        const res = await fetch('/api/recommend_movies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preference }) });
+        const res = await fetch('/api/recommend_movies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preference, session_token: sessionToken }) });
         const data = await res.json();
         if (!res.ok) { const msg = (data && data.error) ? data.error : 'Request failed'; if (movieErrEl) { movieErrEl.textContent = msg; movieErrEl.classList.remove('d-none'); } return; }
-        renderMovieCards(Array.isArray(data) ? data : []);
+        if (data && Array.isArray(data.results)) {
+          currentRunId = data.run_id || null;
+          renderMovieCards(data.results);
+        } else {
+          currentRunId = null;
+          renderMovieCards(Array.isArray(data) ? data : []);
+        }
         if (movieResultWrapper) movieResultWrapper.classList.remove('d-none');
         movieResultWrapper && movieResultWrapper.scrollIntoView({ behavior: 'smooth' });
       } catch (e) {

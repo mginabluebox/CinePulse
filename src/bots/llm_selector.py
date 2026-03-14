@@ -104,7 +104,9 @@ def ollama_generate(prompt: str, model: str,
 def call_llm(prompt: str,
              max_tokens: int = 512,
              temperature: float = 0.7,
-             log_calls: bool = True):
+             log_calls: bool = True,
+             run_id: str = None,
+             session_token: str = None):
     """Dispatch to the configured LLM provider. Provider can be 'openai' or 'ollama'.
 
     Retries once on error with a short backoff.
@@ -143,6 +145,8 @@ def call_llm(prompt: str,
                     prompt=prompt,
                     response=resp if isinstance(resp, str) else json.dumps(resp),
                     error_code=0,
+                    run_id=run_id,
+                    session_token=session_token,
                     engine=engine,
                 )
             except Exception:
@@ -163,6 +167,8 @@ def call_llm(prompt: str,
                     prompt=prompt,
                     response=str(e),
                     error_code=1,
+                    run_id=run_id,
+                    session_token=session_token,
                     engine=engine,
                 )
             except Exception:
