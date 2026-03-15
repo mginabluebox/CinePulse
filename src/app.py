@@ -2,7 +2,7 @@ from database.queries import get_showtimes
 from database.setup_db import get_engine
 from flask import Flask, render_template, request, jsonify
 
-from bots.get_recommendation import recommend_movies, recommend_movies_by_embedding, search_showtimes_by_embedding
+from bots.get_recommendation import recommend_movies_by_embedding, search_showtimes_by_embedding
 from database.queries import insert_recommendation_feedback
 import uuid
 from errors import LLMError, DBError, ParseError
@@ -55,12 +55,6 @@ def index():
     return render_template('index.html', showtimes=showtimes, grouped_showtimes=grouped_showtimes)
 
 engine = get_engine()
-
-# Archived legacy endpoint: /api/recommend previously used showtime-based LLM flow.
-# Keeping route for compatibility but returning 410 to signal deprecation.
-@app.route('/api/recommend', methods=['POST'])
-def api_recommend():
-    return jsonify({'error': 'This endpoint is archived; use /api/recommend_movies instead.'}), 410
 
 
 @app.route('/api/recommend_movies', methods=['POST'])

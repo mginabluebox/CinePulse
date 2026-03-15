@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.engine import Engine
 from database.queries import (
-    get_showtimes,
     get_showtimes_by_ids,
     get_movies_with_future_showtimes,
     get_future_showtimes_for_movie_ids,
@@ -81,55 +80,12 @@ def _dedupe_rows(rows):
     return candidates
 
 
-def fetch_showtimes(days: int = 7, limit: int = 15, engine=None):
-    """Fetch showtimes from the DB and return up to `limit` candidate rows (deduped and ordered)."""
-    try:
-        # allow callers to provide an engine via DI
-        raw = get_showtimes(interval_days=days, engine=engine)
-    except Exception as e:
-        raise DBError(f"Error fetching upcoming movies: {e}")
+def _truncate(s: str, n: int = 300) -> str:
+    if not s:
+        return ''
+    s = str(s)
+    return s if len(s) <= n else s[:n].rsplit(' ', 1)[0] + '...'
 
-    if not raw:
-        return []
-
-    candidates = _dedupe_rows(raw)
-    return candidates[:limit]
-
-
-def build_prompt(preference: str, candidates, days: int = 7) -> str:
-    # Build a compact movies list text with only id, title, director, synopsis
-    def _truncate(s: str, n: int = 300) -> str:
-        if not s:
-            return ''
-        s = str(s)
-        return s if len(s) <= n else s[:n].rsplit(' ', 1)[0] + '...'
-
-    movies_lines = []
-    for i, m in enumerate(candidates, 1):
-        synopsis = _truncate(m.get('synopsis') or '', 300)
-        movies_lines.append(
-            f"{i}. ID: {m.get('id') or ''}  Title: {m['original']}\n"
-            f"   Director: {m.get('director') or ''}\n"
-            f"   Synopsis: {synopsis}\n"
-        )
-    movies_list_text = "\n\n".join(movies_lines)
-
-    prompt = (
-        f"You are a movie recommender. The user is in the mood for: \"{mood}\".\n\n"
-        f"Below is a list of movies showing in the next {days} days. Each item includes only the ID, Title, "
-        f"Director, and Synopsis (the ID is the database id for that showing).\n\n"
-        f"{movies_list_text}\n\n"
-        "Task: From the above list, choose at least 5 movies that best match the user's recent likes and "
-        "current mood. For each recommended movie return a one-sentence reason. IMPORTANT: Address the user "
-        "directly in each reason (use 'you' or 'your' rather than referring to the user in the third person). "
-        "Return ONLY a single valid JSON object (no surrounding text) mapping the movie ID to the one-sentence reason. "
-        "Example: {\"123\": \"1-2 sentences of reason why this matches your taste.\", \"456\": \"Another 1-2 sentences of reason why this matches your taste.\"}. "
-        "If no movies match, return an empty JSON object {}. Do not include any explanations outside the JSON."
-    )
-    return prompt
-
-# Backwards-compatibility for older tests/imports
-_build_prompt = build_prompt
 
 def _extract_json_object(text: str):
     try:
@@ -181,23 +137,6 @@ def parse_response(text_content: str, engine=None):
     return recs[:5]
 
 
-def recommend_movies(preference: str, db_engine: Engine = None, log_calls: bool = True):
-    """High-level orchestration: fetch showtimes, build prompt & call LLM, parse response."""
-    
-    # Step 1: fetch and dedupe showtimes (may raise on DB error)
-    candidates = fetch_showtimes(days=7, limit=15, engine=db_engine)
-    if not candidates:
-        return []
-
-    # Step 2: build prompt and call LLM (may raise on LLM/provider error)
-    prompt = build_prompt(preference, candidates, days=7)
-    text_content = call_llm(prompt, max_tokens=512, temperature=0.7, log_calls=log_calls)
-
-    # Step 3: parse response and return recommended rows (may raise on parsing/db lookup errors)
-    recs = parse_response(text_content, engine=db_engine)
-    return recs
-
-
 def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
     if not vec_a or not vec_b or len(vec_a) != len(vec_b):
         return 0.0
@@ -234,12 +173,6 @@ def _score_candidates_by_similarity(query_vec: List[float], candidates: List[Dic
 
 
 def build_movie_prompt(preference: str, candidates: List[Dict[str, Any]]) -> str:
-    def _truncate(s: str, n: int = 300) -> str:
-        if not s:
-            return ''
-        s = str(s)
-        return s if len(s) <= n else s[:n].rsplit(' ', 1)[0] + '...'
-
     movies_lines = []
     for m in candidates:
         synopsis = _truncate(m.get('synopsis') or '', 300)
@@ -321,7 +254,6 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
 
     # Step 1: fetch all eligible candidates (future showtimes + embedding)
     candidates = get_movies_with_future_showtimes(engine=db_engine)
-    candidates = [c for c in candidates if c.get('embedding')]
     if not candidates:
         return []
 
@@ -410,7 +342,6 @@ def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
 
     # Fetch candidates that have future showtimes and embeddings
     candidates = get_movies_with_future_showtimes(engine=db_engine)
-    candidates = [c for c in candidates if c.get('embedding')]
     if not candidates:
         return []
 

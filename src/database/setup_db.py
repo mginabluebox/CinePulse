@@ -31,8 +31,3 @@ def get_session(engine=None):
         engine = get_engine()
     Session = sessionmaker(bind=engine)
     return Session()
-
-# # Initialize database (for migrations or creating tables)
-# def setup_database():
-#     engine = get_engine()
-#     Base.metadata.create_all(engine)

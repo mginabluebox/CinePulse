@@ -24,16 +24,28 @@ OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 DEFAULT_OPENAI_TIMEOUT = 30
 DEFAULT_OLLAMA_TIMEOUT = 30
 
+_TIKTOKEN_ENCODING = tiktoken.get_encoding('o200k_base')
+
+_openai_client = None
+
+
+def _get_openai_client() -> OpenAI:
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is not set")
+        _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
+
+
 def openai_generate(prompt: str, model: str, 
                     max_tokens: int = 512, 
                     temperature: float = 0.7):
     """
     Call OpenAI via the official Python client and return the assistant text.
     """
-    if not OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY is not set")
-
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = _get_openai_client()
 
     # Make request - let exceptions propagate to caller
     resp = client.chat.completions.create(
@@ -114,23 +126,15 @@ def call_llm(prompt: str,
     """
 
     def _count_tokens(text: str, model: str = None) -> int:
-        
-        enc = tiktoken.get_encoding('o200k_base')
-        
-        return len(enc.encode(text))
-
-        # # fallback heuristic: average 4 chars per token
-        # return max(1, len(text) // 4)
+        return len(_TIKTOKEN_ENCODING.encode(text))
 
     # ensure we count tokens using a concrete model name
     prompt_tokens = _count_tokens(prompt, MODEL_NAME)
 
     try:
         if LLM_PROVIDER == "openai":
-            # print("Calling OpenAI LLM...") 
             resp = openai_generate(prompt, MODEL_NAME, max_tokens=max_tokens, temperature=temperature)
         elif LLM_PROVIDER == "ollama":
-            # print("Calling Ollama LLM...") 
             resp = ollama_generate(prompt, MODEL_NAME, max_tokens=max_tokens, temperature=temperature)
 
         # log successful call (error_code 0)
@@ -188,7 +192,7 @@ def generate_embedding(text: str):
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("OPENAI_API_KEY is required for embeddings")
 
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = _get_openai_client()
     resp = client.embeddings.create(model=OPENAI_EMBED_MODEL, input=[str(text).strip()])
     if not resp or not getattr(resp, "data", None):
         raise LLMError("Embedding response missing data")
