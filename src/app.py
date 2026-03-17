@@ -1,6 +1,7 @@
 from database.queries import get_showtimes
 from database.setup_db import get_engine
 from flask import Flask, render_template, request, jsonify
+from flask_caching import Cache
 
 from bots.get_recommendation import recommend_movies_by_embedding, search_showtimes_by_embedding
 from database.queries import insert_recommendation_feedback
@@ -10,45 +11,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-
-
-def group_showtimes_by_movie(showtimes):
-    """Group flat showtime rows by movie to simplify rendering."""
-    grouped = []
-    index = {}
-    for row in showtimes or []:
-        key = row.get("movie_id") or row.get("title")
-        bucket = index.get(key)
-        if bucket is None:
-            bucket = {
-                "movie_id": row.get("movie_id"),
-                "title": row.get("title"),
-                "director": row.get("director"),
-                "year": row.get("year"),
-                "runtime": row.get("runtime"),
-                "synopsis": row.get("synopsis"),
-                "image_url": row.get("image_url"),
-                "showtimes": [],
-            }
-            grouped.append(bucket)
-            index[key] = bucket
-
-        if not bucket.get("image_url") and row.get("image_url"):
-            bucket["image_url"] = row.get("image_url")
-
-        bucket["showtimes"].append(
-            {
-                "id": row.get("id"),
-                "showdate": row.get("showdate"),
-                "showtime": row.get("showtime"),
-                "show_day": row.get("show_day"),
-                "format": row.get("format"),
-                "cinema": row.get("cinema"),
-                "ticket_link": row.get("ticket_link"),
-            }
-        )
-
-    return grouped
+cache = Cache(config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
+cache.init_app(app)
 
 def parse_showtime_mins(t):
     """Convert a showtime string like '7:30 PM' to minutes from midnight for sorting."""
@@ -126,14 +90,15 @@ def build_calendar(showtimes):
 
 
 @app.route('/')
+@cache.cached(timeout=300)
 def landing():
-    showtimes = get_showtimes(interval_days=7)
+    showtimes = get_showtimes(interval_days=7, engine=engine)
     calendar = build_calendar(showtimes)
-    grouped_showtimes = group_showtimes_by_movie(showtimes)
-    return render_template('landing.html', calendar=calendar, grouped_showtimes=grouped_showtimes)
+    return render_template('landing.html', calendar=calendar)
 
 
 @app.route('/api/calendar_week2')
+@cache.cached(timeout=300)
 def api_calendar_week2():
     start = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
     end = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')

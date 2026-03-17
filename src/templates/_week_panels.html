@@ -16,7 +16,7 @@
             <div class="cp-film-banner-trigger{% if film.synopsis %} cp-expandable{% endif %}">
               <div class="cp-film-thumb-wrap">
                 {% if film.image_url %}
-                <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb">
+                <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy">
                 {% endif %}
               </div>
               <div class="cp-film-info">
