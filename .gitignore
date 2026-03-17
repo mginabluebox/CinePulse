@@ -179,3 +179,7 @@ archive/
 .github/
 
 requirements-test.txt
+
+# Claude
+.claude
+CLAUDE.md
