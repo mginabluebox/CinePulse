@@ -16,8 +16,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const showtimeSearchInput = document.getElementById('showtimeSearchInput');
   const showtimeSearchButton = document.getElementById('showtimeSearchButton');
   const showtimeSearchClear = document.getElementById('showtimeSearchClear');
-  const showtimeSearchError = document.getElementById('showtimeSearchError');
-  const showtimeLoading = document.getElementById('showtimeLoading');
+  const showtimeSearchBtnOrig = showtimeSearchButton ? showtimeSearchButton.innerHTML : 'Search';
+  const showtimeInputPlaceholderOrig = showtimeSearchInput ? showtimeSearchInput.placeholder : 'Search films…';
+
+  function showSearchInputError(msg) {
+    if (!showtimeSearchInput) return;
+    showtimeSearchInput.placeholder = msg;
+    showtimeSearchInput.classList.add('cp-input-error');
+    showtimeSearchInput.value = '';
+  }
+  function clearSearchInputError() {
+    if (!showtimeSearchInput) return;
+    showtimeSearchInput.placeholder = showtimeInputPlaceholderOrig;
+    showtimeSearchInput.classList.remove('cp-input-error');
+  }
   const showtimeAccordion = document.getElementById('showtimeAccordion');
   const showtimeEmptyState = document.getElementById('showtimeEmptyState');
   const initialShowtimeHTML = showtimeAccordion ? showtimeAccordion.innerHTML : '';
@@ -62,9 +74,68 @@ document.addEventListener('DOMContentLoaded', () => {
   const esc = (s) => String(s || '').replace(/[&<>\"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const escAttr = (s) => encodeURI(String(s || ''));
 
-  // Archived: legacy showtime-based swipe UI removed.
+  // --- Shared showtime rendering (consistent with landing page) ---
+  function renderShowtimeBtns(showtimes) {
+    if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
+    // Group by date
+    const order = [];
+    const groups = {};
+    showtimes.forEach(st => {
+      const date = st.showdate || '';
+      if (!groups[date]) { groups[date] = { label: st.show_day ? `${st.show_day}, ${date}` : date, sts: [] }; order.push(date); }
+      groups[date].sts.push(st);
+    });
+    return order.map(date => {
+      const { label, sts } = groups[date];
+      sts.sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime));
+    const btns = sts.map(st => {
+        if (st.ticket_link === 'sold_out') {
+          return `<span class="cp-time-btn sold-out">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></span>`;
+        }
+        return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></a>`;
+      }).join('');
+      return `<div class="cp-showtime-date-group"><span class="cp-showtime-date-label">${esc(label)}</span><div class="cp-film-times">${btns}</div></div>`;
+    }).join('');
+  }
 
-  // --- Showtime search rendering ---
+  // --- Showtime period helpers (mirrors Python logic) ---
+  function _stMins(t) {
+    if (!t) return 9999;
+    try {
+      const parts = String(t).trim().toUpperCase().split(':');
+      const h = parseInt(parts[0]);
+      const rest = parts[1].split(/\s+/);
+      const mn = parseInt(rest[0]);
+      const ampm = rest[1] || null;
+      let hh = h;
+      if (ampm === 'PM' && h < 12) hh += 12;
+      if (ampm === 'AM' && h === 12) hh = 0;
+      return hh * 60 + mn;
+    } catch(e) { return 9999; }
+  }
+  function _stPeriod(t) {
+    const m = _stMins(t);
+    return m < 720 ? 'morning' : m < 1020 ? 'afternoon' : 'evening';
+  }
+
+  // --- Render period-grouped time buttons (used in search banners) ---
+  function renderPeriodTimes(showtimes) {
+    const byPeriod = { morning: [], afternoon: [], evening: [] };
+    (showtimes || []).slice()
+      .sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime))
+      .forEach(st => byPeriod[_stPeriod(st.showtime)].push(st));
+    return [['morning','Morning'],['afternoon','Afternoon'],['evening','Evening']].map(([key, label]) => {
+      if (!byPeriod[key].length) return '';
+      const btns = byPeriod[key].map(st =>
+        st.ticket_link === 'sold_out'
+          ? `<span class="cp-time-btn sold-out">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></span>`
+          : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></a>`
+      ).join('');
+      return `<div class="cp-period-group"><span class="cp-period-label">${label}</span><div class="cp-film-times">${btns}</div></div>`;
+    }).join('');
+  }
+
+  // --- Showtime search rendering (banner style, consistent with calendar) ---
   function renderShowtimeAccordion(movies) {
     if (!showtimeAccordion) return;
     if (!Array.isArray(movies) || movies.length === 0) {
@@ -75,74 +146,59 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showtimeEmptyState) showtimeEmptyState.classList.add('d-none');
 
     const html = movies.map((m, idx) => {
-      const headingId = `showtime-heading-${idx}`;
-      const collapseId = `showtime-collapse-${idx}`;
-      const badge = typeof m.similarity === 'number'
-        ? `<span class="badge bg-secondary ms-2">sim ${(m.similarity || 0).toFixed(2)}</span>`
+      const detailId = `sr-${idx}`;
+      const imgHtml = m.image_url
+        ? `<img src="${escAttr(m.image_url)}" alt="${esc(m.title)}" class="cp-film-thumb">`
         : '';
-      const image = m.image_url ? `
-        <div class="mb-3 text-center">
-          <img src="${escAttr(m.image_url)}" alt="${esc(m.title)} poster" class="img-fluid rounded">
-        </div>` : '';
-      const synopsis = m.synopsis ? `<p class="mb-3">${esc(m.synopsis)}</p>` : '';
-      const runtime = m.runtime ? `${esc(m.runtime)} min` : '';
-      const showtimeRows = (m.showtimes || []).map(st => {
-        const ticket = st.ticket_link === 'sold_out'
-          ? '<span class="text-danger">Sold Out</span>'
-          : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="btn btn-sm btn-primary">${esc(st.cinema)}</a>`;
-        return `
-          <tr>
-            <td>${esc(st.showdate)}</td>
-            <td>${esc(st.showtime)}</td>
-            <td>${esc(st.show_day)}</td>
-            <td>${esc(st.format)}</td>
-            <td>${ticket}</td>
-          </tr>`;
-      }).join('');
-
+      const metaParts = [];
+      if (m.director) metaParts.push(esc(m.director));
+      if (m.year) metaParts.push(esc(m.year));
+      if (m.runtime) metaParts.push(`${esc(m.runtime)} min`);
+      const meta = metaParts.join(' · ');
+      const simHtml = typeof m.similarity === 'number'
+        ? `<span class="cp-similarity">${Math.round(m.similarity * 100)}% match</span>`
+        : '';
+      const timesHtml = renderShowtimeBtns(m.showtimes);
+      const hasSynopsis = !!m.synopsis;
+      const synopsisHtml = hasSynopsis
+        ? `<p class="cp-banner-synopsis-inline cp-synopsis">${esc(m.synopsis)}</p>`
+        : '';
       return `
-        <div class="accordion-item">
-          <h2 class="accordion-header" id="${headingId}">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
-              <div class="w-100">
-                <div class="d-flex justify-content-between align-items-center">
-                  <span class="fw-semibold">${esc(m.title)}${badge}</span>
-                  <span class="text-muted small">
-                    ${m.year ? esc(m.year) : ''}
-                    ${runtime ? ` • ${runtime}` : ''}
-                  </span>
-                </div>
-                <div class="text-muted small">${esc(m.director)}</div>
-              </div>
-            </button>
-          </h2>
-          <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headingId}" data-bs-parent="#showtimeAccordion">
-            <div class="accordion-body">
-              ${image}
-              ${synopsis}
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Day</th>
-                      <th>Format</th>
-                      <th>Ticket</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${showtimeRows}
-                  </tbody>
-                </table>
+        <div class="cp-film-banner">
+          <div class="cp-film-banner-row">
+            <div class="cp-film-banner-trigger${hasSynopsis ? ' cp-expandable' : ''}">
+              <div class="cp-film-thumb-wrap">${imgHtml}</div>
+              <div class="cp-film-info">
+                <span class="cp-film-title">${esc(m.title)}</span>
+                <span class="cp-film-meta">${meta}</span>
+                ${simHtml}
+                ${synopsisHtml}
               </div>
             </div>
+            <div class="cp-showtime-groups">${timesHtml}</div>
           </div>
-        </div>
-      `;
+        </div>`;
     }).join('');
 
     showtimeAccordion.innerHTML = html;
+
+    // Attach click handlers with auto-collapse
+    showtimeAccordion.querySelectorAll('.cp-film-banner-trigger.cp-expandable').forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const banner = trigger.closest('.cp-film-banner');
+        const isExpanded = banner.classList.contains('expanded');
+        document.querySelectorAll('.cp-film-banner.expanded').forEach(b => {
+          b.classList.remove('expanded');
+          b.querySelectorAll('.cp-banner-synopsis-inline').forEach(s => s.classList.remove('synopsis-visible'));
+        });
+        if (!isExpanded) {
+          banner.classList.add('expanded');
+          setTimeout(() => {
+            banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(s => s.classList.add('synopsis-visible'));
+          }, 380);
+        }
+      });
+    });
   }
 
   function updateShowtimePagination(total, page, pageSize) {
@@ -401,64 +457,38 @@ document.addEventListener('DOMContentLoaded', () => {
           <img src="${escAttr(image)}" alt="${esc(m.title)} poster" class="img-fluid rounded">
         </div>` : '';
       const synopsis = m.synopsis ? `<p class="mb-3 text-muted">${esc(m.synopsis)}</p>` : '';
-      const showtimeRows = stList.map(s => {
-        const ticket = s.ticket_link === 'sold_out'
-          ? '<span class="text-danger">Sold Out</span>'
-          : `<a class="btn btn-sm btn-primary" href="${escAttr(s.ticket_link)}" target="_blank">${esc(s.cinema)}</a>`;
-        return `
-          <tr>
-            <td>${esc(s.showdate)}</td>
-            <td>${esc(s.showtime)}</td>
-            <td>${esc(s.show_day)}</td>
-            <td>${esc(s.format)}</td>
-            <td>${ticket}</td>
-          </tr>`;
-      }).join('');
+      const showtimeBtns2 = renderShowtimeBtns(stList);
 
+      const metaParts2 = [];
+      if (m.director) metaParts2.push(esc(m.director));
+      if (m.year) metaParts2.push(esc(m.year));
+      if (runtime) metaParts2.push(runtime);
+      const meta2 = metaParts2.join(' · ');
       return `
-        <div class="accordion-item">
+        <div class="accordion-item cp-accordion-item">
           <h2 class="accordion-header" id="${headingId}">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
-              <div class="w-100">
-                <div class="d-flex justify-content-between align-items-center">
-                  <span class="fw-semibold">${rankBadge}${esc(m.title)}${likedBadge}</span>
-                  <span class="text-muted small">
-                    ${m.year ? esc(m.year) : ''}
-                    ${runtime ? ` • ${runtime}` : ''}
-                  </span>
+            <button class="accordion-button cp-accordion-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
+              <div class="cp-accordion-header-inner">
+                <div>
+                  <span class="cp-film-title">${rankBadge}${esc(m.title)}${likedBadge}</span>
+                  <span class="cp-film-meta">${meta2}</span>
                 </div>
-                <div class="text-muted small">${esc(m.director)}</div>
               </div>
             </button>
           </h2>
           <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headingId}" data-bs-parent="#movieSwipeSummary">
-            <div class="accordion-body">
+            <div class="accordion-body cp-accordion-body">
               ${imageHtml}
               ${reason}
               ${synopsis}
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Day</th>
-                      <th>Format</th>
-                      <th>Ticket</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${showtimeRows}
-                  </tbody>
-                </table>
-              </div>
+              <div class="cp-showtime-groups">${showtimeBtns2}</div>
             </div>
           </div>
         </div>
       `;
     }).join('');
 
-    movieSwipeSummary.innerHTML = `<h5 class="mb-3">Summary</h5><div class="accordion" id="movieSwipeSummary">${html}</div>`;
+    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p><div class="accordion cp-accordion" id="movieSwipeSummaryAccordion">${html}</div>`;
     movieSwipeSummary.classList.remove('d-none');
     if (movieCards) movieCards.classList.add('d-none');
     if (movieTopHeader) movieTopHeader.classList.add('d-none');
@@ -505,8 +535,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Showtime search handlers ---
   function setShowtimeLoading(isLoading) {
-    if (showtimeLoading) showtimeLoading.classList.toggle('d-none', !isLoading);
-    if (showtimeSearchButton) showtimeSearchButton.disabled = isLoading;
+    if (showtimeSearchButton) {
+      if (isLoading) {
+        showtimeSearchButton.style.width = showtimeSearchButton.offsetWidth + 'px';
+        showtimeSearchButton.style.justifyContent = 'center';
+        showtimeSearchButton.style.pointerEvents = 'none';
+        showtimeSearchButton.innerHTML = '<span class="cp-spinner"></span>';
+      } else {
+        showtimeSearchButton.innerHTML = showtimeSearchBtnOrig;
+        showtimeSearchButton.style.width = '';
+        showtimeSearchButton.style.justifyContent = '';
+        showtimeSearchButton.style.pointerEvents = '';
+      }
+    }
     if (showtimeSearchClear) showtimeSearchClear.disabled = isLoading;
   }
 
@@ -524,32 +565,40 @@ document.addEventListener('DOMContentLoaded', () => {
       ev.preventDefault();
       const query = (showtimeSearchInput && showtimeSearchInput.value || '').trim();
       if (!query) {
-        if (showtimeSearchError) { showtimeSearchError.textContent = 'Please enter a search query.'; showtimeSearchError.classList.remove('d-none'); }
+        showSearchInputError('Please enter a search query.');
         return;
       }
-      if (showtimeSearchError) showtimeSearchError.classList.add('d-none');
+      clearSearchInputError();
       setShowtimeLoading(true);
       try {
         const res = await fetch('/api/search_showtimes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
         const data = await res.json();
         if (!res.ok) {
-          const msg = (data && data.error) ? data.error : 'Search failed';
-          if (showtimeSearchError) { showtimeSearchError.textContent = msg; showtimeSearchError.classList.remove('d-none'); }
+          showSearchInputError((data && data.error) ? data.error : 'Search failed.');
           return;
         }
         showtimeResults = Array.isArray(data) ? data : [];
         renderShowtimePage(1);
+        const calView = document.getElementById('calendarView');
+        const searchView = document.getElementById('searchResultsView');
+        if (calView && searchView) { calView.style.display = 'none'; searchView.style.display = ''; }
       } catch (e) {
-        if (showtimeSearchError) { showtimeSearchError.textContent = 'Network error. Try again.'; showtimeSearchError.classList.remove('d-none'); }
+        showSearchInputError('Network error. Try again.');
       } finally {
         setShowtimeLoading(false);
       }
     });
   }
 
+  if (showtimeSearchInput) {
+    showtimeSearchInput.addEventListener('input', clearSearchInputError);
+    showtimeSearchInput.addEventListener('focus', clearSearchInputError);
+  }
+
   if (showtimeSearchClear) {
     showtimeSearchClear.addEventListener('click', () => {
       if (showtimeSearchInput) showtimeSearchInput.value = '';
+      clearSearchInputError();
       resetShowtimeView();
     });
   }
@@ -583,6 +632,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = Number.isFinite(val) ? Math.min(Math.max(1, val), showtimeTotalPages) : showtimePage;
         renderShowtimePage(target);
       }
+    });
+  }
+
+  const backToCalendar = document.getElementById('backToCalendar');
+  if (backToCalendar) {
+    backToCalendar.addEventListener('click', () => {
+      const calView = document.getElementById('calendarView');
+      const searchView = document.getElementById('searchResultsView');
+      if (calView && searchView) { calView.style.display = ''; searchView.style.display = 'none'; }
+      if (showtimeSearchInput) showtimeSearchInput.value = '';
+      if (showtimeSearchError) showtimeSearchError.classList.add('d-none');
     });
   }
 

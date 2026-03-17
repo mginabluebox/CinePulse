@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinePulse — New York Cinema Showtimes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="cp-body">
+
+<header class="cp-header">
+  <div class="cp-header-inner">
+    <a href="/" class="cp-logo">CinePulse</a>
+    <nav class="cp-header-nav">
+      <a href="#showtimeSearchForm" class="cp-nav-link">Search</a>
+      <a href="/app" class="cp-nav-link">Recommend</a>
+    </nav>
+  </div>
+</header>
+
+<section class="cp-hero">
+  <div class="cp-hero-banner">
+    <img src="/static/nostalghia.jpg" alt="" class="cp-hero-banner-img" aria-hidden="true">
+  </div>
+  <div class="cp-hero-text">
+    <p class="cp-hero-desc">
+      CinePulse sources showtimes from indie cinemas in New York and matches films
+      to your mood. Browse what's on this week, or let us recommend tonight's pick.
+    </p>
+    <div class="cp-hero-cta">
+      <a href="/app" class="cp-btn cp-btn-primary">Get a recommendation &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<section class="cp-calendar-section">
+
+  <!-- Section header: title + inline search -->
+  <div class="cp-calendar-header">
+    <h2 class="cp-section-title" style="margin-bottom:0">Upcoming Showtimes</h2>
+    <form id="showtimeSearchForm" class="cp-inline-search">
+      <input type="text" class="cp-input cp-inline-input" id="showtimeSearchInput" placeholder="Search films…">
+      <button type="submit" class="cp-btn cp-btn-primary cp-btn-icon" id="showtimeSearchButton"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search</button>
+      <button type="button" class="cp-btn cp-btn-secondary" id="showtimeSearchClear">Clear</button>
+    </form>
+  </div>
+
+  <!-- Calendar view -->
+  <div id="calendarView">
+    {% if calendar %}
+    <div class="cp-day-tabs" role="tablist">
+      <button id="weekPrevBtn" class="cp-week-prev-btn" aria-label="Show previous 7 days" style="display:none">&#8249;</button>
+      {% for day in calendar %}
+      <button class="cp-day-tab {% if loop.first %}active{% endif %}"
+              data-day="{{ loop.index0 }}" data-week="1" role="tab">
+        {{ day.label }}
+      </button>
+      {% endfor %}
+      <button id="loadNextWeek" class="cp-week-next-btn" aria-label="Show next 7 days">&#8250;</button>
+    </div>
+
+    {% set day_offset = 0 %}
+    {% include '_week_panels.html' %}
+
+    <div id="loadMoreWeekRow" class="cp-load-more-row"></div>
+
+    {% else %}
+    <p class="cp-no-showtimes">No upcoming showtimes found.</p>
+    {% endif %}
+  </div><!-- /#calendarView -->
+
+  <!-- Search results view (hidden until search is run) -->
+  <div id="searchResultsView" style="display:none">
+    <div class="cp-search-back-row">
+      <button id="backToCalendar" class="cp-btn cp-btn-secondary">&#8592; Back</button>
+    </div>
+    <div id="showtimeEmptyState" class="cp-empty-state d-none">No results found.</div>
+    <div id="showtimeAccordion"></div>
+    <div class="cp-pagination d-none" id="showtimePagination">
+      <span class="cp-page-info" id="showtimePageInfo"></span>
+      <div class="cp-page-controls">
+        <button type="button" class="cp-btn cp-btn-secondary" id="showtimePrevPage">Prev</button>
+        <button type="button" class="cp-btn cp-btn-secondary" id="showtimeNextPage">Next</button>
+        <input type="number" min="1" class="cp-page-input" id="showtimePageInput" aria-label="Page number">
+        <button class="cp-btn cp-btn-secondary" type="button" id="showtimePageGo">Go</button>
+      </div>
+    </div>
+  </div><!-- /#searchResultsView -->
+
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/script.js"></script>
+<script>
+// Drag-to-scroll for tabs bar
+(function() {
+  var el = document.querySelector('.cp-day-tabs');
+  if (!el) return;
+  var isDown = false, startX, scrollLeft;
+  el.addEventListener('mousedown', function(e) {
+    if (e.target.closest('.cp-day-tab, .cp-week-next-btn, .cp-week-prev-btn')) return;
+    isDown = true;
+    startX = e.pageX - el.offsetLeft;
+    scrollLeft = el.scrollLeft;
+  });
+  document.addEventListener('mouseup', function() { isDown = false; });
+  el.addEventListener('mousemove', function(e) {
+    if (!isDown) return;
+    e.preventDefault();
+    el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX);
+  });
+  // Mouse wheel scrolls horizontally on the tabs bar
+  el.addEventListener('wheel', function(e) {
+    if (e.deltaY !== 0 && !e.deltaX) {
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+})();
+
+// Day tab switching — delegated so newly loaded tabs work automatically
+var dayTabsEl = document.querySelector('.cp-day-tabs');
+if (dayTabsEl) {
+  dayTabsEl.addEventListener('click', function(e) {
+    var btn = e.target.closest('.cp-day-tab');
+    if (!btn) return;
+    document.querySelectorAll('.cp-day-tab').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.cp-day-panel').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('day-' + btn.dataset.day).classList.add('active');
+  });
+}
+
+// Film expand — delegated so newly loaded panels work automatically
+var calView = document.getElementById('calendarView');
+if (calView) {
+  calView.addEventListener('click', function(e) {
+    var trigger = e.target.closest('.cp-film-banner-trigger.cp-expandable');
+    if (!trigger) return;
+    var banner = trigger.closest('.cp-film-banner');
+    var isExpanded = banner.classList.contains('expanded');
+    document.querySelectorAll('.cp-film-banner.expanded').forEach(function(b) {
+      b.classList.remove('expanded');
+      b.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
+        s.classList.remove('synopsis-visible');
+      });
+    });
+    if (!isExpanded) {
+      banner.classList.add('expanded');
+      setTimeout(function() {
+        banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
+          s.classList.add('synopsis-visible');
+        });
+      }, 380);
+    }
+  });
+}
+
+// Week navigation
+var currentWeek = 1;
+var week2Loaded = false;
+
+function goToWeek(week) {
+  currentWeek = week;
+  document.querySelectorAll('.cp-day-tab').forEach(function(t) {
+    if (t.dataset.week == week) {
+      t.classList.remove('cp-tab-hidden');
+    } else {
+      t.classList.add('cp-tab-hidden');
+      t.classList.remove('active');
+    }
+  });
+  document.querySelectorAll('.cp-day-panel').forEach(function(p) { p.classList.remove('active'); });
+  var firstTab = document.querySelector('.cp-day-tab[data-week="' + week + '"]');
+  if (firstTab) {
+    firstTab.classList.add('active');
+    var panel = document.getElementById('day-' + firstTab.dataset.day);
+    if (panel) panel.classList.add('active');
+  }
+  var prevBtn = document.getElementById('weekPrevBtn');
+  var nextBtn = document.getElementById('loadNextWeek');
+  if (prevBtn) prevBtn.style.display = (week === 1) ? 'none' : '';
+  if (nextBtn) nextBtn.style.display = (week === 2) ? 'none' : '';
+}
+
+var prevBtn = document.getElementById('weekPrevBtn');
+if (prevBtn) {
+  prevBtn.addEventListener('click', function() { goToWeek(1); });
+}
+
+var loadBtn = document.getElementById('loadNextWeek');
+if (loadBtn) {
+  loadBtn.addEventListener('click', function() {
+    if (week2Loaded) { goToWeek(2); return; }
+    loadBtn.disabled = true;
+    loadBtn.innerHTML = '…';
+    fetch('/api/calendar_week2')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.tabs) {
+          loadBtn.insertAdjacentHTML('beforebegin', data.tabs);
+        }
+        if (data.panels) {
+          document.getElementById('loadMoreWeekRow').insertAdjacentHTML('beforebegin', data.panels);
+        }
+        week2Loaded = true;
+        loadBtn.disabled = false;
+        loadBtn.innerHTML = '&#8250;';
+        goToWeek(2);
+      })
+      .catch(function() {
+        loadBtn.disabled = false;
+        loadBtn.innerHTML = '&#8250;';
+      });
+  });
+}
+</script>
+</body>
+</html>

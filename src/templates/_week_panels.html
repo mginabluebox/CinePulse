@@ -1,0 +1,50 @@
+{% for day in calendar %}
+{% set day_idx = day_offset + loop.index0 %}
+<div class="cp-day-panel {% if loop.first and day_offset == 0 %}active{% endif %}" id="day-{{ day_idx }}" data-week="{{ 1 if day_offset == 0 else 2 }}">
+  {% for period_key, period_label in [('morning','Morning'),('afternoon','Afternoon'),('evening','Evening')] %}
+    {% set ns = namespace(shown=false) %}
+    {% for film in day.films %}
+      {% set psts = film.showtimes | selectattr('period', 'equalto', period_key) | list %}
+      {% if psts %}
+        {% if not ns.shown %}
+        <div class="cp-period-section">
+          <h3 class="cp-period-section-title">{{ period_label }}</h3>
+        {% set ns.shown = true %}
+        {% endif %}
+        <div class="cp-film-banner">
+          <div class="cp-film-banner-row">
+            <div class="cp-film-banner-trigger{% if film.synopsis %} cp-expandable{% endif %}">
+              <div class="cp-film-thumb-wrap">
+                {% if film.image_url %}
+                <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb">
+                {% endif %}
+              </div>
+              <div class="cp-film-info">
+                <span class="cp-film-title">{{ film.title }}</span>
+                <span class="cp-film-meta">
+                  {% if film.director %}{{ film.director }}{% endif %}
+                  {% if film.year %} &middot; {{ film.year }}{% endif %}
+                  {% if film.runtime %} &middot; {{ film.runtime }} min{% endif %}
+                </span>
+                {% if film.synopsis %}
+                <p class="cp-banner-synopsis-inline cp-synopsis">{{ film.synopsis }}</p>
+                {% endif %}
+              </div>
+            </div>
+            <div class="cp-film-times">
+              {% for st in psts %}
+                {% if st.ticket_link == 'sold_out' %}
+                  <span class="cp-time-btn sold-out">{{ st.showtime }}<span class="cp-cinema-name">{{ st.cinema }}</span></span>
+                {% else %}
+                  <a href="{{ st.ticket_link }}" target="_blank" class="cp-time-btn">{{ st.showtime }}<span class="cp-cinema-name">{{ st.cinema }}</span></a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+    {% if ns.shown %}</div>{% endif %}
+  {% endfor %}
+</div>
+{% endfor %}

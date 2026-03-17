@@ -1,0 +1,3 @@
+{% for day in calendar %}
+<button class="cp-day-tab cp-tab-hidden" data-day="{{ day_offset + loop.index0 }}" data-week="2" role="tab">{{ day.label }}</button>
+{% endfor %}

@@ -1,20 +1,836 @@
-body {
-    background-color: #f8f9fa;
+/* ── Design tokens ──────────────────────────────────────────────────────── */
+:root {
+    --cp-bg:           #f7f3ec;
+    --cp-surface:      #ffffff;
+    --cp-border:       #ddd5c5;
+    --cp-text:         #1a1510;
+    --cp-text-muted:   #7a7068;
+    --cp-accent:       #c42b2b;
+    --cp-accent-hover: #9e1f1f;
+    --cp-navy:         #1e2157;
 }
 
-h1 {
-    color: #007bff;
-    margin-bottom: 20px;
+/* ── Base ───────────────────────────────────────────────────────────────── */
+.cp-body {
+    background-color: var(--cp-bg);
+    color: var(--cp-text);
+    font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* Swipe card styles */
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.cp-header {
+    border-bottom: 1px solid var(--cp-border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    background: var(--cp-bg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.cp-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.cp-logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cp-navy);
+    text-decoration: none;
+}
+
+.cp-logo:hover {
+    color: var(--cp-navy);
+}
+
+.cp-header-nav {
+    display: flex;
+    gap: 2rem;
+}
+
+.cp-nav-link {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 2px;
+}
+
+.cp-nav-link:hover,
+.cp-nav-link.active {
+    color: var(--cp-accent);
+    border-bottom-color: var(--cp-accent);
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.cp-hero {
+    margin: 0 0 3rem;
+}
+
+.cp-hero-banner {
+    width: 100%;
+    overflow: hidden;
+    box-shadow: inset 0 -8px 20px rgba(0,0,0,0.07);
+}
+
+.cp-hero-banner-img {
+    display: block;
+    width: 100%;
+    height: clamp(280px, 36vw, 440px);
+    object-fit: cover;
+    object-position: center 52%;
+}
+
+.cp-hero-text {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1.75rem 1.5rem 0;
+    text-align: center;
+}
+
+.cp-hero-desc {
+    font-size: 1.0rem;
+    line-height: 1.7;
+    color: var(--cp-text-muted);
+    margin-bottom: 1.5rem;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.cp-btn {
+    display: inline-block;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+}
+
+.cp-btn-primary {
+    background: var(--cp-accent);
+    color: #fff;
+    padding: .65rem 1.75rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.cp-btn-primary:hover {
+    background: var(--cp-accent-hover);
+    color: #fff;
+}
+
+/* Bootstrap btn-primary override */
+.btn-primary {
+    background-color: var(--cp-accent);
+    border-color: var(--cp-accent);
+    color: #fff;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary:first-child:active {
+    background-color: var(--cp-accent-hover);
+    border-color: var(--cp-accent-hover);
+    color: #fff;
+}
+.btn-primary:focus-visible {
+    box-shadow: 0 0 0 0.25rem rgba(196, 43, 43, 0.3);
+}
+.btn-secondary {
+    background-color: var(--cp-surface);
+    border-color: var(--cp-border);
+    color: var(--cp-text-muted);
+}
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background-color: var(--cp-border);
+    border-color: var(--cp-border);
+    color: var(--cp-text);
+}
+.btn-outline-secondary {
+    border-color: var(--cp-border);
+    color: var(--cp-text-muted);
+    background-color: transparent;
+}
+.btn-outline-secondary:hover {
+    background-color: var(--cp-border);
+    border-color: var(--cp-border);
+    color: var(--cp-text);
+}
+.btn-sm.btn-primary {
+    color: #fff;
+}
+
+/* ── Calendar ───────────────────────────────────────────────────────────── */
+.cp-calendar-section {
+    max-width: 1000px;
+    margin: 0 auto 4rem;
+    padding: 0 1.5rem;
+}
+
+.cp-section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    margin-bottom: 1rem;
+}
+
+/* ── Calendar section header (title + inline search) ────────────────────── */
+.cp-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.cp-inline-search {
+    display: flex;
+    align-items: stretch;
+    gap: .5rem;
+    flex-wrap: nowrap;
+}
+
+.cp-inline-input {
+    width: 200px;
+    flex-shrink: 1;
+}
+
+/* ── Search results back row ─────────────────────────────────────────────── */
+.cp-search-back-row {
+    padding: .75rem 0 1rem;
+    border-bottom: 1px solid var(--cp-border);
+    margin-bottom: .25rem;
+}
+
+/* ── Period sections (Morning / Afternoon / Evening) ──────────────────── */
+.cp-period-section {
+    margin-top: 1.75rem;
+}
+
+.cp-period-section:first-child {
+    margin-top: .75rem;
+}
+
+.cp-period-section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    border-bottom: 1px solid var(--cp-border);
+    padding-bottom: .4rem;
+    margin-bottom: 0;
+}
+
+.cp-day-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0;
+    border-bottom: 1px solid var(--cp-border);
+    margin-bottom: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    align-items: stretch;
+}
+
+.cp-day-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.cp-day-tab {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: .65rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: -1px;
+    flex-shrink: 0;
+}
+
+.cp-day-tab.active,
+.cp-day-tab:hover {
+    color: var(--cp-accent);
+    border-bottom-color: var(--cp-accent);
+}
+
+.cp-day-tab.cp-tab-hidden {
+    display: none;
+}
+
+.cp-week-prev-btn {
+    flex-shrink: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--cp-text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: .65rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: -1px;
+    line-height: 1;
+}
+
+.cp-week-prev-btn:hover {
+    color: var(--cp-accent);
+}
+
+.cp-week-next-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--cp-text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: .65rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: -1px;
+    line-height: 1;
+}
+
+.cp-week-next-btn:hover {
+    color: var(--cp-accent);
+}
+
+.cp-load-more-row {
+    display: none;
+}
+
+.cp-day-panel {
+    display: none;
+}
+
+.cp-day-panel.active {
+    display: block;
+}
+
+/* ── Film banner (calendar) ─────────────────────────────────────────────── */
+.cp-film-banner {
+    border-bottom: 1px solid var(--cp-border);
+}
+
+.cp-film-banner-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: .75rem 0;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+/* Left: thumbnail + info — optionally the expand trigger */
+.cp-film-banner-trigger {
+    display: flex;
+    align-items: flex-start;
+    gap: .85rem;
+    flex: 1 1 220px;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
+    user-select: none;
+}
+
+.cp-film-banner-trigger.cp-expandable {
+    cursor: pointer;
+}
+
+.cp-film-banner-trigger.cp-expandable:hover .cp-film-title {
+    color: var(--cp-accent);
+}
+
+/* When expanded: trigger takes full row width; times wrap beneath */
+.cp-film-banner.expanded .cp-film-banner-trigger {
+    flex: 1 1 100%;
+}
+
+.cp-film-banner.expanded .cp-film-times {
+    margin-left: auto;
+    padding-bottom: .75rem;
+}
+
+.cp-film-thumb-wrap {
+    flex-shrink: 0;
+    width: 80px;
+    height: 50px;
+    overflow: hidden;
+    background: var(--cp-border);
+    transition: width 380ms cubic-bezier(.4,0,.2,1),
+                height 380ms cubic-bezier(.4,0,.2,1);
+}
+
+/* Thumbnail grows in place when banner is expanded */
+.cp-film-banner.expanded .cp-film-thumb-wrap {
+    width: 280px;
+    height: 175px;
+}
+
+.cp-film-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 380ms cubic-bezier(.4,0,.2,1);
+}
+
+.cp-film-banner.expanded .cp-film-thumb {
+    transform: scale(1.03);
+}
+
+.cp-film-info {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.cp-film-title {
+    display: block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .9rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--cp-text);
+}
+
+.cp-film-meta {
+    display: block;
+    font-size: .78rem;
+    color: var(--cp-text-muted);
+    margin-top: .2rem;
+}
+
+.cp-similarity {
+    display: inline-block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--cp-accent);
+    margin-top: .3rem;
+}
+
+.cp-film-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    max-width: 50%;
+}
+
+/* ── Film banner synopsis (inline, shown after thumbnail expansion) ──── */
+.cp-banner-synopsis-inline {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-top: 0;
+}
+
+/* Expansion sets max-height/margin but NOT opacity — JS adds synopsis-visible after delay */
+.cp-film-banner.expanded .cp-banner-synopsis-inline {
+    max-height: 400px;
+    margin-top: .6rem;
+}
+
+/* Synopsis fades in only after expansion animation completes */
+.cp-banner-synopsis-inline.synopsis-visible {
+    opacity: 1;
+    transition: opacity 200ms ease;
+}
+
+.cp-time-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-decoration: none;
+    color: var(--cp-accent);
+    border: 1px solid var(--cp-accent);
+    padding: .3rem .6rem;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.cp-time-btn:hover {
+    background: var(--cp-accent);
+    color: #fff;
+}
+
+.cp-time-btn.sold-out {
+    color: var(--cp-text-muted);
+    border-color: var(--cp-border);
+    cursor: default;
+    position: relative;
+}
+
+.cp-time-btn.sold-out:hover > * {
+    visibility: hidden;
+}
+
+.cp-time-btn.sold-out::after {
+    content: 'Sold Out';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    font-size: .68rem;
+    letter-spacing: .04em;
+}
+
+.cp-time-btn.sold-out:hover::after {
+    opacity: 1;
+}
+
+.cp-cinema-name {
+    font-size: .6rem;
+    font-weight: 400;
+    letter-spacing: .02em;
+    color: inherit;
+    opacity: .75;
+}
+
+/* ── Button spinner ─────────────────────────────────────────────────────── */
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+
+.cp-spinner {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: cp-spin .65s linear infinite;
+    vertical-align: middle;
+}
+
+/* ── Showtime date groups (used in app accordion + landing) ─────────────── */
+.cp-film-banner-row .cp-showtime-groups {
+    flex-shrink: 0;
+    max-width: 50%;
+}
+
+.cp-showtime-groups {
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+}
+
+.cp-showtime-date-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.cp-showtime-date-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    min-width: 100px;
+    padding-top: .35rem;
+    flex-shrink: 0;
+}
+
+.cp-no-showtimes {
+    color: var(--cp-text-muted);
+    margin-top: 2rem;
+}
+
+/* ── Main app layout ────────────────────────────────────────────────────── */
+.cp-main {
+    padding-bottom: 4rem;
+}
+
+/* ── App section (matches calendar-section) ─────────────────────────────── */
+.cp-app-section {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ── Form block ─────────────────────────────────────────────────────────── */
+.cp-form-block {
+    padding: 2rem 0 1.5rem;
+    border-bottom: 1px solid var(--cp-border);
+    margin-bottom: 0;
+}
+
+.cp-form-block .cp-section-title {
+    margin-bottom: .75rem;
+}
+
+.cp-search-row {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.cp-input {
+    flex: 1 1 240px;
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    color: var(--cp-text);
+    padding: .55rem .85rem;
+    font-family: inherit;
+    font-size: .9rem;
+    outline: none;
+    border-radius: 0;
+    min-width: 0;
+}
+
+.cp-input::placeholder { color: var(--cp-text-muted); }
+.cp-input:focus { border-color: var(--cp-accent); box-shadow: none; }
+.cp-input.cp-input-error { border-color: var(--cp-accent); }
+.cp-input.cp-input-error::placeholder { color: var(--cp-accent); opacity: 1; }
+
+.cp-search-actions {
+    display: flex;
+    gap: .5rem;
+    flex-shrink: 0;
+}
+
+.cp-btn-secondary {
+    background: transparent;
+    color: var(--cp-text-muted);
+    border: 1px solid var(--cp-border);
+    padding: .55rem 1rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.cp-btn-secondary:hover { border-color: var(--cp-text-muted); color: var(--cp-text); }
+
+.cp-btn-icon { display: inline-flex; align-items: center; gap: .4rem; }
+
+/* ── Inline search — unify button heights to match the input ────────────── */
+.cp-inline-search .cp-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 .85rem;
+    font-size: .8rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.cp-form-error {
+    margin-top: .5rem;
+    font-size: .82rem;
+    color: var(--cp-accent);
+}
+
+.cp-loading {
+    margin-top: .5rem;
+    font-size: .82rem;
+    color: var(--cp-text-muted);
+}
+
+.cp-swipe-hint {
+    font-size: .78rem;
+    color: var(--cp-text-muted);
+    margin: 1rem 0 .5rem;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: .04em;
+}
+
+.cp-empty-state {
+    color: var(--cp-text-muted);
+    padding: 2rem 0;
+    font-size: .9rem;
+}
+
+/* ── cp-accordion (editorial, flat) ─────────────────────────────────────── */
+.cp-accordion {
+    --bs-accordion-border-color: transparent;
+    --bs-accordion-border-radius: 0;
+    --bs-accordion-inner-border-radius: 0;
+}
+
+.cp-accordion-item {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--cp-border) !important;
+    border-radius: 0 !important;
+}
+
+.cp-accordion-btn {
+    background: transparent !important;
+    padding: 1rem 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+.cp-accordion-btn:not(.collapsed) {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--cp-accent) !important;
+}
+
+.cp-accordion-btn:not(.collapsed) .cp-film-title {
+    color: var(--cp-accent);
+}
+
+.cp-accordion-btn::after {
+    opacity: .4;
+    flex-shrink: 0;
+}
+
+.cp-accordion-header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    padding-right: .5rem;
+}
+
+.cp-accordion-body {
+    background: transparent !important;
+    padding: 0 0 1.25rem 0 !important;
+}
+
+.cp-poster-wrap {
+    margin-bottom: 1rem;
+}
+
+.cp-poster-img {
+    max-height: 200px;
+    width: auto;
+    display: block;
+    border-radius: 2px;
+}
+
+.cp-synopsis {
+    font-size: .88rem;
+    color: var(--cp-text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.cp-sold-out {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--cp-text-muted);
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+.table {
+    color: var(--cp-text);
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--cp-border);
+}
+.table th {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    border-color: var(--cp-border);
+}
+.table td {
+    border-color: var(--cp-border);
+    font-size: .85rem;
+    color: var(--cp-text);
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.cp-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-top: 1px solid var(--cp-border);
+    margin-top: .5rem;
+}
+
+.cp-page-info {
+    font-size: .75rem;
+    color: var(--cp-text-muted);
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: .06em;
+}
+
+.cp-page-controls {
+    display: flex;
+    gap: .4rem;
+    align-items: center;
+}
+
+.cp-page-input {
+    width: 56px;
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    color: var(--cp-text);
+    padding: .45rem .5rem;
+    font-size: .8rem;
+    text-align: center;
+    border-radius: 0;
+    outline: none;
+}
+
+.cp-page-input:focus { border-color: var(--cp-accent); }
+
+/* ── Bootstrap utility overrides ────────────────────────────────────────── */
+.text-muted { color: var(--cp-text-muted) !important; }
+.text-danger { color: var(--cp-accent) !important; }
+
+/* ── Swipe card styles ──────────────────────────────────────────────────── */
 .card-deck-wrapper {
     position: relative;
     width: 100%;
     max-width: 720px;
     height: 520px;
     margin: 0 auto 1rem auto;
-} 
+}
 
 .swipe-card {
     position: absolute;
@@ -25,8 +841,8 @@ h1 {
     max-width: 700px;
     height: 100%;
     border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    background: #fff;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.1);
+    background: var(--cp-surface);
     padding: 16px;
     transition: transform 200ms ease, opacity 200ms ease;
     touch-action: pan-y;
@@ -35,6 +851,8 @@ h1 {
     justify-content: space-between;
     overflow: hidden;
     user-select: none;
+    border: 1px solid var(--cp-border);
+    color: var(--cp-text);
 }
 
 .swipe-card * {
@@ -51,7 +869,7 @@ h1 {
     max-height: 220px;
     overflow: hidden;
     border-radius: 8px;
-    background: #f5f5f5;
+    background: #f0ece4;
     margin-bottom: 10px;
 }
 
@@ -65,17 +883,18 @@ h1 {
 .swipe-card .title {
     font-size: 1.25rem;
     font-weight: 600;
+    color: var(--cp-text);
 }
 
 .swipe-card .reason {
     margin-top: 8px;
-    color: #333;
+    color: var(--cp-text-muted);
     flex: 1 1 auto;
 }
 
 .swipe-card .meta {
     font-size: 0.9rem;
-    color: #666;
+    color: var(--cp-text-muted);
 }
 
 .swipe-card .ticket-btn {
@@ -84,7 +903,7 @@ h1 {
 
 .swipe-card .synopsis {
     margin-top: 10px;
-    color: #444;
+    color: var(--cp-text-muted);
     font-size: 0.95rem;
     max-height: 120px;
     overflow: auto;
@@ -92,27 +911,26 @@ h1 {
 }
 
 .swipe-card.like {
-    border: 3px solid rgba(40, 167, 69, 0.75);
+    border: 3px solid rgba(100, 160, 80, 0.75);
 }
 .swipe-card.nope {
-    border: 3px solid rgba(220, 53, 69, 0.75);
+    border: 3px solid rgba(196, 43, 43, 0.75);
 }
 
 .card-stack-count {
     position: absolute;
     right: 12px;
     top: 12px;
-    background: rgba(0,0,0,0.05);
+    background: rgba(0,0,0,0.08);
     padding: 4px 8px;
     border-radius: 8px;
     font-size: 0.85rem;
+    color: var(--cp-text-muted);
 }
 
 .hidden { display: none !important; }
 
-/* Placeholder inside the card deck: match card sizing and centering so the
-   helper text doesn't peek out on wide screens. Keeps the same visual
-   footprint as a card and sits behind swipe cards when they exist. */
+/* ── noRecs placeholder ─────────────────────────────────────────────────── */
 #cardDeck #noRecs {
     position: absolute;
     left: 50%;
@@ -122,9 +940,10 @@ h1 {
     max-width: 700px;
     padding: 16px;
     border-radius: 12px;
-    background: #fff;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
     text-align: center;
-    color: #6c757d; /* text-muted look */
-    z-index: 1; /* swipe cards use higher z-index so they appear above */
+    color: var(--cp-text-muted);
+    z-index: 1;
 }
