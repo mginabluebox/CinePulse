@@ -754,14 +754,6 @@
     line-height: 1.6;
 }
 
-.cp-sold-out {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: .72rem;
-    font-weight: 700;
-    letter-spacing: .04em;
-    color: var(--cp-text-muted);
-}
-
 /* ── Table ──────────────────────────────────────────────────────────────── */
 .table {
     color: var(--cp-text);

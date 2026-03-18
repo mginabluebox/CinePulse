@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!byPeriod[key].length) return '';
       const btns = byPeriod[key].map(st =>
         st.ticket_link === 'sold_out'
-          ? `<span class="cp-time-btn sold-out">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></span>`
+          ? `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span><span class="cp-cinema-name">${esc(st.cinema)}</span></span>`
           : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></a>`
       ).join('');
       return `<div class="cp-period-group"><span class="cp-period-label">${label}</span><div class="cp-film-times">${btns}</div></div>`;
