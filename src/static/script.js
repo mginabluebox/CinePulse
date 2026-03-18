@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
       sts.sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime));
     const btns = sts.map(st => {
         if (st.ticket_link === 'sold_out') {
-          return `<span class="cp-time-btn sold-out">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></span>`;
+          return `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span><span class="cp-cinema-name">${esc(st.cinema)}</span></span>`;
         }
         return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></a>`;
       }).join('');
@@ -488,8 +488,18 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
-    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p><div class="accordion cp-accordion" id="movieSwipeSummaryAccordion">${html}</div>`;
+    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p><div class="accordion cp-accordion" id="movieSwipeSummaryAccordion">${html}</div><button id="movieSearchAgain" type="button" class="cp-btn cp-btn-secondary mt-3">Search again</button>`;
     movieSwipeSummary.classList.remove('d-none');
+
+    const searchAgainBtn = document.getElementById('movieSearchAgain');
+    if (searchAgainBtn) {
+      searchAgainBtn.addEventListener('click', () => {
+        clearMovieCards();
+        if (movieResultWrapper) movieResultWrapper.classList.add('d-none');
+        if (moviePreferenceInput) { moviePreferenceInput.value = ''; moviePreferenceInput.focus(); }
+        if (movieForm) movieForm.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
     if (movieCards) movieCards.classList.add('d-none');
     if (movieTopHeader) movieTopHeader.classList.add('d-none');
     if (movieTopHeader && movieTopHeader.parentElement) movieTopHeader.parentElement.classList.add('d-none');

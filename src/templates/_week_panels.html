@@ -34,7 +34,7 @@
             <div class="cp-film-times">
               {% for st in psts %}
                 {% if st.ticket_link == 'sold_out' %}
-                  <span class="cp-time-btn sold-out">{{ st.showtime }}<span class="cp-cinema-name">{{ st.cinema }}</span></span>
+                  <span class="cp-time-btn sold-out"><span>{{ st.showtime }}</span><span class="cp-cinema-name">{{ st.cinema }}</span></span>
                 {% else %}
                   <a href="{{ st.ticket_link }}" target="_blank" class="cp-time-btn">{{ st.showtime }}<span class="cp-cinema-name">{{ st.cinema }}</span></a>
                 {% endif %}

@@ -514,6 +514,7 @@
     opacity: 0;
     font-size: .68rem;
     letter-spacing: .04em;
+    color: #fff;
 }
 
 .cp-time-btn.sold-out:hover::after {
@@ -818,6 +819,73 @@
 }
 
 .cp-page-input:focus { border-color: var(--cp-accent); }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 576px) {
+    /* Expanded banner: stack poster above text */
+    .cp-film-banner.expanded .cp-film-banner-trigger {
+        flex-direction: column;
+    }
+
+    .cp-film-banner.expanded .cp-film-thumb-wrap {
+        width: 100%;
+        height: 180px;
+    }
+
+    .cp-film-banner.expanded .cp-film-times {
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
+    /* Time buttons — larger touch target */
+    .cp-time-btn {
+        padding: .5rem .75rem;
+    }
+
+    /* Film times — full width when on their own row */
+    .cp-film-times {
+        max-width: 100%;
+        justify-content: flex-start;
+    }
+
+    /* Showtime groups in accordion/app — full width */
+    .cp-film-banner-row .cp-showtime-groups {
+        max-width: 100%;
+    }
+
+    /* Inline search — stack input above buttons */
+    .cp-inline-search {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .cp-inline-input {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    /* Restore vertical padding on buttons now that they're on their own row */
+    .cp-inline-search .cp-btn {
+        padding: .55rem .85rem;
+    }
+
+    /* Swipe card deck — shorter on small phones */
+    .card-deck-wrapper {
+        height: 460px;
+    }
+
+    /* Pagination — stack vertically */
+    .cp-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .5rem;
+    }
+
+    /* Date label — narrower on mobile */
+    .cp-showtime-date-label {
+        min-width: 70px;
+    }
+}
 
 /* ── Bootstrap utility overrides ────────────────────────────────────────── */
 .text-muted { color: var(--cp-text-muted) !important; }
