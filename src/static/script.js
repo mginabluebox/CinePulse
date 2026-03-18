@@ -488,18 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }).join('');
 
-    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p><div class="accordion cp-accordion" id="movieSwipeSummaryAccordion">${html}</div><button id="movieSearchAgain" type="button" class="cp-btn cp-btn-secondary mt-3">Search again</button>`;
+    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p><div class="accordion cp-accordion" id="movieSwipeSummaryAccordion">${html}</div>`;
     movieSwipeSummary.classList.remove('d-none');
-
-    const searchAgainBtn = document.getElementById('movieSearchAgain');
-    if (searchAgainBtn) {
-      searchAgainBtn.addEventListener('click', () => {
-        clearMovieCards();
-        if (movieResultWrapper) movieResultWrapper.classList.add('d-none');
-        if (moviePreferenceInput) { moviePreferenceInput.value = ''; moviePreferenceInput.focus(); }
-        if (movieForm) movieForm.scrollIntoView({ behavior: 'smooth' });
-      });
-    }
     if (movieCards) movieCards.classList.add('d-none');
     if (movieTopHeader) movieTopHeader.classList.add('d-none');
     if (movieTopHeader && movieTopHeader.parentElement) movieTopHeader.parentElement.classList.add('d-none');
