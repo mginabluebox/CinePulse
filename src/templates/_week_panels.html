@@ -1,50 +1,73 @@
+{% macro render_film_banner(film, psts, extra_class='') %}
+<div class="cp-film-banner{{ (' ' + extra_class) if extra_class else '' }}">
+  <div class="cp-film-banner-row">
+    <div class="cp-film-banner-trigger{% if film.synopsis %} cp-expandable{% endif %}">
+      <div class="cp-film-thumb-wrap">
+        {% if film.image_url %}
+        <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy">
+        {% endif %}
+      </div>
+      <div class="cp-film-info">
+        <span class="cp-film-title">{{ film.title }}{% if film.details_link %}<a href="{{ film.details_link }}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>{% endif %}</span>
+        <span class="cp-film-meta">
+          {% if film.director %}{{ film.director }}{% endif %}
+          {% if film.year %} &middot; {{ film.year }}{% endif %}
+          {% if film.runtime %} &middot; {{ film.runtime }} min{% endif %}
+        </span>
+        {% if film.synopsis %}
+        <p class="cp-banner-synopsis-inline cp-synopsis">{{ film.synopsis }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="cp-film-times">
+      {% for st in psts %}
+        {% if st.ticket_link == 'sold_out' %}
+          <span class="cp-time-btn sold-out"><span>{{ st.showtime }}</span></span>
+        {% else %}
+          <a href="{{ st.ticket_link }}" target="_blank" class="cp-time-btn">{{ st.showtime }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
 {% for day in calendar %}
 {% set day_idx = day_offset + loop.index0 %}
 <div class="cp-day-panel {% if loop.first and day_offset == 0 %}active{% endif %}" id="day-{{ day_idx }}" data-week="{{ 1 if day_offset == 0 else 2 }}">
   {% for period_key, period_label in [('morning','Morning'),('afternoon','Afternoon'),('evening','Evening')] %}
-    {% set ns = namespace(shown=false) %}
+    {% set period_films = [] %}
     {% for film in day.films %}
       {% set psts = film.showtimes | selectattr('period', 'equalto', period_key) | list %}
       {% if psts %}
-        {% if not ns.shown %}
-        <div class="cp-period-section">
-          <h3 class="cp-period-section-title">{{ period_label }}</h3>
-        {% set ns.shown = true %}
-        {% endif %}
-        <div class="cp-film-banner">
-          <div class="cp-film-banner-row">
-            <div class="cp-film-banner-trigger{% if film.synopsis %} cp-expandable{% endif %}">
-              <div class="cp-film-thumb-wrap">
-                {% if film.image_url %}
-                <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy">
-                {% endif %}
-              </div>
-              <div class="cp-film-info">
-                <span class="cp-film-title">{{ film.title }}</span>
-                <span class="cp-film-meta">
-                  {% if film.director %}{{ film.director }}{% endif %}
-                  {% if film.year %} &middot; {{ film.year }}{% endif %}
-                  {% if film.runtime %} &middot; {{ film.runtime }} min{% endif %}
-                </span>
-                {% if film.synopsis %}
-                <p class="cp-banner-synopsis-inline cp-synopsis">{{ film.synopsis }}</p>
-                {% endif %}
-              </div>
-            </div>
-            <div class="cp-film-times">
-              {% for st in psts %}
-                {% if st.ticket_link == 'sold_out' %}
-                  <span class="cp-time-btn sold-out"><span>{{ st.showtime }}</span><span class="cp-cinema-name">{{ st.cinema }}</span></span>
-                {% else %}
-                  <a href="{{ st.ticket_link }}" target="_blank" class="cp-time-btn">{{ st.showtime }}<span class="cp-cinema-name">{{ st.cinema }}</span></a>
-                {% endif %}
-              {% endfor %}
-            </div>
-          </div>
-        </div>
+        {% if period_films.append({'film': film, 'psts': psts}) %}{% endif %}
       {% endif %}
     {% endfor %}
-    {% if ns.shown %}</div>{% endif %}
+    {% if period_films %}
+    <div class="cp-period-section">
+      <h3 class="cp-period-section-title">{{ period_label }}</h3>
+      {% for cinema_group in period_films | groupby(attribute='film.cinema') %}
+        <h4 class="cp-cinema-label" data-cinema="{{ cinema_group.grouper }}">{{ cinema_group.grouper }}</h4>
+        <div class="cp-cinema-group" data-cinema="{{ cinema_group.grouper }}">
+          {% set vis = namespace(count=0, hidden=[]) %}
+          {% for item in cinema_group.list %}
+            {% if vis.count < 2 %}
+              {% set vis.count = vis.count + 1 %}
+              {{ render_film_banner(item.film, item.psts) }}
+            {% else %}
+              {% if vis.hidden.append(item) %}{% endif %}
+            {% endif %}
+          {% endfor %}
+          {% if vis.hidden %}
+            <button type="button" class="cp-show-more-btn" data-cinema="{{ cinema_group.grouper }}" data-count="{{ vis.hidden|length }}" data-expanded="false">Show {{ vis.hidden|length }} more from {{ cinema_group.grouper }}…</button>
+            {% for item in vis.hidden %}
+              {{ render_film_banner(item.film, item.psts, 'cp-hidden-film') }}
+            {% endfor %}
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   {% endfor %}
 </div>
 {% endfor %}

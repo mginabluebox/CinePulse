@@ -49,6 +49,26 @@
     </form>
   </div>
 
+  <!-- Cinema filter -->
+  {% if calendar %}
+  {% set all_cinemas = [] %}
+  {% for day in calendar %}
+    {% for film in day.films %}
+      {% if film.cinema and film.cinema not in all_cinemas %}
+        {% if all_cinemas.append(film.cinema) %}{% endif %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% if all_cinemas|length > 1 %}
+  <div class="cp-cinema-filter" id="cinemaFilter">
+    <button class="cp-cinema-filter-btn active" data-cinema="all">All cinemas</button>
+    {% for cinema in all_cinemas | sort %}
+    <button class="cp-cinema-filter-btn" data-cinema="{{ cinema }}">{{ cinema }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+
   <!-- Calendar view -->
   <div id="calendarView">
     {% if calendar %}
@@ -158,6 +178,102 @@ if (calView) {
       }, 380);
     }
   });
+
+  // Show more / Show less toggle for cinema groups
+  calView.addEventListener('click', function(e) {
+    var btn = e.target.closest('.cp-show-more-btn');
+    if (!btn) return;
+    var group = btn.closest('.cp-cinema-group');
+    if (btn.dataset.expanded === 'true') {
+      // Collapse: hide films 3+ and restore button before them
+      var films = Array.from(group.querySelectorAll('.cp-film-banner'));
+      films.slice(2).forEach(function(f) { f.classList.add('cp-hidden-film'); });
+      if (films[2]) { group.insertBefore(btn, films[2]); }
+      btn.textContent = 'Show ' + btn.dataset.count + ' more from ' + btn.dataset.cinema + '\u2026';
+      btn.dataset.expanded = 'false';
+    } else {
+      // Expand: show all hidden films and move button to end of group
+      group.querySelectorAll('.cp-hidden-film').forEach(function(f) {
+        f.classList.remove('cp-hidden-film');
+      });
+      group.appendChild(btn);
+      btn.textContent = 'Show less\u2026';
+      btn.dataset.expanded = 'true';
+    }
+  });
+}
+
+// Cinema filter (multi-select)
+var selectedCinemas = new Set(); // empty = all shown
+
+function applyCinemaFilter(cinema) {
+  if (cinema === 'all') {
+    selectedCinemas.clear();
+  } else {
+    if (selectedCinemas.has(cinema)) {
+      selectedCinemas.delete(cinema);
+    } else {
+      selectedCinemas.add(cinema);
+    }
+  }
+  var showAll = selectedCinemas.size === 0;
+  document.querySelectorAll('.cp-cinema-filter-btn').forEach(function(btn) {
+    if (btn.dataset.cinema === 'all') {
+      btn.classList.toggle('active', showAll);
+    } else {
+      btn.classList.toggle('active', selectedCinemas.has(btn.dataset.cinema));
+    }
+  });
+  document.querySelectorAll('.cp-cinema-group').forEach(function(group) {
+    group.style.display = (showAll || selectedCinemas.has(group.dataset.cinema)) ? '' : 'none';
+  });
+  document.querySelectorAll('.cp-cinema-label').forEach(function(label) {
+    label.style.display = (showAll || selectedCinemas.has(label.dataset.cinema)) ? '' : 'none';
+  });
+  document.querySelectorAll('.cp-period-section').forEach(function(section) {
+    var hasVisible = Array.from(section.querySelectorAll('.cp-cinema-group')).some(function(g) {
+      return g.style.display !== 'none';
+    });
+    section.style.display = hasVisible ? '' : 'none';
+  });
+  filterSearchResults();
+}
+
+function filterSearchResults() {
+  var searchView = document.getElementById('searchResultsView');
+  if (searchView && searchView.style.display !== 'none') {
+    if (typeof window.renderShowtimePage === 'function') {
+      window.renderShowtimePage(1);
+    }
+    return;
+  }
+}
+
+// Re-apply current filter state to newly injected DOM (e.g. week 2 panels)
+function reapplyCinemaFilter() {
+  var showAll = selectedCinemas.size === 0;
+  document.querySelectorAll('.cp-cinema-group').forEach(function(group) {
+    group.style.display = (showAll || selectedCinemas.has(group.dataset.cinema)) ? '' : 'none';
+  });
+  document.querySelectorAll('.cp-cinema-label').forEach(function(label) {
+    label.style.display = (showAll || selectedCinemas.has(label.dataset.cinema)) ? '' : 'none';
+  });
+  document.querySelectorAll('.cp-period-section').forEach(function(section) {
+    var hasVisible = Array.from(section.querySelectorAll('.cp-cinema-group')).some(function(g) {
+      return g.style.display !== 'none';
+    });
+    section.style.display = hasVisible ? '' : 'none';
+  });
+  filterSearchResults();
+}
+
+var cinemaFilterEl = document.getElementById('cinemaFilter');
+if (cinemaFilterEl) {
+  cinemaFilterEl.addEventListener('click', function(e) {
+    var btn = e.target.closest('.cp-cinema-filter-btn');
+    if (!btn) return;
+    applyCinemaFilter(btn.dataset.cinema);
+  });
 }
 
 // Week navigation
@@ -210,6 +326,7 @@ if (loadBtn) {
         week2Loaded = true;
         loadBtn.disabled = false;
         loadBtn.innerHTML = '&#8250;';
+        reapplyCinemaFilter();
         goToWeek(2);
       })
       .catch(function() {

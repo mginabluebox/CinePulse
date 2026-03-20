@@ -327,13 +327,14 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
 
 
 def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
-                                  top_n: int = 30,
+                                  top_n_per_cinema: int = 30,
                                   showtimes_per_movie: int = 20):
     """Return upcoming showtimes grouped by movie, ranked via cosine similarity to the query.
 
     This is a lightweight retrieval-only flow (no LLM rerank). It embeds the user query,
-    scores all movies with future showtimes by cosine similarity, and returns the top set
-    with their showtimes.
+    scores all movies with future showtimes by cosine similarity, and returns up to
+    top_n_per_cinema results per cinema so each venue always contributes results regardless
+    of global rank.
     """
 
     q = (query or '').strip()
@@ -351,21 +352,43 @@ def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
     if not query_vec:
         return []
 
-    scored = _score_candidates_by_similarity(query_vec, candidates, top_n=top_n)
+    # Score all candidates with no global cutoff; list is sorted by similarity desc
+    scored = _score_candidates_by_similarity(query_vec, candidates, top_n=len(candidates))
     ids = [c['movie_id'] for c in scored]
     if not ids:
         return []
 
     showtime_map = get_future_showtimes_for_movie_ids(ids, limit_per_movie=showtimes_per_movie, engine=db_engine)
 
+    cinema_counts: Dict[str, int] = {}
+    selected_ids: set = set()
     results = []
+
     for c in scored:
         mid = c.get('movie_id')
         st_list = showtime_map.get(mid, []) if mid is not None else []
         if not st_list:
             continue
 
-        poster_url = c.get('scraped_image_url') or next((s.get('image_url') for s in st_list if s.get('image_url')), None)
+        cinemas = {st.get('cinema') for st in st_list if st.get('cinema')}
+
+        # Qualify if any cinema still has quota remaining
+        qualifies = any(cinema_counts.get(cn, 0) < top_n_per_cinema for cn in cinemas)
+        if not qualifies:
+            continue
+
+        if mid in selected_ids:
+            continue
+        selected_ids.add(mid)
+
+        # Consume quota only for cinemas still below limit
+        for cn in cinemas:
+            if cinema_counts.get(cn, 0) < top_n_per_cinema:
+                cinema_counts[cn] = cinema_counts.get(cn, 0) + 1
+
+        poster_url = c.get('scraped_image_url') or next(
+            (s.get('image_url') for s in st_list if s.get('image_url')), None
+        )
         runtime = c.get('runtime') or (st_list[0].get('runtime') if st_list else None)
 
         results.append({

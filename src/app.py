@@ -46,7 +46,8 @@ def build_calendar(showtimes):
     day_labels = {}
     for row in (showtimes or []):
         date = row.get('showdate')
-        key = row.get('movie_id') or row.get('title')
+        cinema = row.get('cinema') or ''
+        key = (row.get('movie_id') or row.get('title'), cinema)
         if key not in cal[date]:
             cal[date][key] = {
                 'title': row.get('title'),
@@ -55,16 +56,19 @@ def build_calendar(showtimes):
                 'runtime': row.get('runtime'),
                 'synopsis': row.get('synopsis'),
                 'image_url': row.get('image_url'),
+                'cinema': cinema,
+                'details_link': row.get('details_link'),
                 'showtimes': []
             }
         if not cal[date][key].get('image_url') and row.get('image_url'):
             cal[date][key]['image_url'] = row.get('image_url')
         if not cal[date][key].get('synopsis') and row.get('synopsis'):
             cal[date][key]['synopsis'] = row.get('synopsis')
+        if not cal[date][key].get('details_link') and row.get('details_link'):
+            cal[date][key]['details_link'] = row.get('details_link')
         mins = parse_showtime_mins(row.get('showtime'))
         cal[date][key]['showtimes'].append({
             'showtime': row.get('showtime'),
-            'cinema': row.get('cinema'),
             'format': row.get('format'),
             'ticket_link': row.get('ticket_link'),
             'period': showtime_period(mins),

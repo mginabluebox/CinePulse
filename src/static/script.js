@@ -52,6 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let showtimeResults = null;
   let showtimePage = 1;
   let showtimeTotalPages = 1;
+
+  function getFilteredShowtimeResults() {
+    if (!Array.isArray(showtimeResults)) return [];
+    if (typeof selectedCinemas === 'undefined' || selectedCinemas.size === 0) return showtimeResults;
+    return showtimeResults.filter(m =>
+      (m.showtimes || []).some(s => s.cinema && selectedCinemas.has(s.cinema))
+    );
+  }
   let currentRunId = null;
 
   // Simple runtime storage for swipes
@@ -74,6 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const esc = (s) => String(s || '').replace(/[&<>\"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const escAttr = (s) => encodeURI(String(s || ''));
 
+  // Render title with cinema suffix styled separately
+  function titleHtml(title, cinemas) {
+    if (!cinemas || !cinemas.length) return esc(title);
+    return `${esc(title)}<span class="cp-title-cinema"> @ ${esc(cinemas.join(' & '))}</span>`;
+  }
+
   // --- Shared showtime rendering (consistent with landing page) ---
   function renderShowtimeBtns(showtimes) {
     if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
@@ -90,9 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
       sts.sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime));
     const btns = sts.map(st => {
         if (st.ticket_link === 'sold_out') {
-          return `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span><span class="cp-cinema-name">${esc(st.cinema)}</span></span>`;
+          return `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span></span>`;
         }
-        return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></a>`;
+        return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}</a>`;
       }).join('');
       return `<div class="cp-showtime-date-group"><span class="cp-showtime-date-label">${esc(label)}</span><div class="cp-film-times">${btns}</div></div>`;
     }).join('');
@@ -128,8 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!byPeriod[key].length) return '';
       const btns = byPeriod[key].map(st =>
         st.ticket_link === 'sold_out'
-          ? `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span><span class="cp-cinema-name">${esc(st.cinema)}</span></span>`
-          : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}<span class="cp-cinema-name">${esc(st.cinema)}</span></a>`
+          ? `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span></span>`
+          : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}</a>`
       ).join('');
       return `<div class="cp-period-group"><span class="cp-period-label">${label}</span><div class="cp-film-times">${btns}</div></div>`;
     }).join('');
@@ -147,6 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const html = movies.map((m, idx) => {
       const detailId = `sr-${idx}`;
+      const cinemas = [...new Set((m.showtimes || []).map(s => s.cinema).filter(Boolean))];
+      const detailsLink = (m.showtimes || []).map(s => s.details_link).find(Boolean) || '';
       const imgHtml = m.image_url
         ? `<img src="${escAttr(m.image_url)}" alt="${esc(m.title)}" class="cp-film-thumb">`
         : '';
@@ -158,18 +174,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const simHtml = typeof m.similarity === 'number'
         ? `<span class="cp-similarity">${Math.round(m.similarity * 100)}% match</span>`
         : '';
+      const arrowHtml = detailsLink
+        ? `<a href="${escAttr(detailsLink)}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>`
+        : '';
       const timesHtml = renderShowtimeBtns(m.showtimes);
       const hasSynopsis = !!m.synopsis;
       const synopsisHtml = hasSynopsis
         ? `<p class="cp-banner-synopsis-inline cp-synopsis">${esc(m.synopsis)}</p>`
         : '';
       return `
-        <div class="cp-film-banner">
+        <div class="cp-film-banner" data-cinemas="${esc(cinemas.join(','))}">
           <div class="cp-film-banner-row">
             <div class="cp-film-banner-trigger${hasSynopsis ? ' cp-expandable' : ''}">
               <div class="cp-film-thumb-wrap">${imgHtml}</div>
               <div class="cp-film-info">
-                <span class="cp-film-title">${esc(m.title)}</span>
+                <span class="cp-film-title">${titleHtml(m.title, cinemas)}${arrowHtml}</span>
                 <span class="cp-film-meta">${meta}</span>
                 ${simHtml}
                 ${synopsisHtml}
@@ -229,16 +248,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const total = showtimeResults.length;
+    const filtered = getFilteredShowtimeResults();
+    const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / SHOWTIME_PAGE_SIZE));
     const nextPage = Math.min(Math.max(1, page || 1), totalPages);
     showtimePage = nextPage;
 
     const startIdx = (nextPage - 1) * SHOWTIME_PAGE_SIZE;
-    const slice = showtimeResults.slice(startIdx, startIdx + SHOWTIME_PAGE_SIZE);
+    const slice = filtered.slice(startIdx, startIdx + SHOWTIME_PAGE_SIZE);
     renderShowtimeAccordion(slice);
     updateShowtimePagination(total, nextPage, SHOWTIME_PAGE_SIZE);
   }
+  window.renderShowtimePage = renderShowtimePage;
 
   // form submit
   // --- Movie Picks (embedding-based) ---
@@ -358,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
       card.dataset.payload = JSON.stringify(payload);
 
       const imgUrl = it.scraped_image_url || it.image_url;
+      const cinemaList = [...new Set((it.showtimes || []).map(s => s.cinema).filter(Boolean))];
       const imgHtml = imgUrl ? `<div class="card-img-wrapper mb-2"><img src="${escAttr(imgUrl)}" alt="${esc(it.title)} poster" class="swipe-card-img"></div>` : '';
       const cinemas = Array.isArray(it.cinemas) ? it.cinemas : [];
       let cinemaHtml = '';
@@ -373,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
       card.innerHTML = `
         <div>
           ${imgHtml}
-          <div class="title">${esc(it.title)}</div>
+          <div class="title">${titleHtml(it.title, cinemaList)}</div>
           <div class="small text-muted">${metaLine}</div>
           <div class="reason">${esc(it.reason || '')}</div>
           <div class="synopsis">${esc(it.synopsis || '')}</div>
@@ -434,6 +456,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const html = rows.map((m, idx) => {
       const stList = Array.isArray(m.showtimes) ? m.showtimes : [];
+      const summaryCinemas = [...new Set(stList.map(s => s.cinema).filter(Boolean))];
+      const summaryDetailsLink = stList.map(s => s.details_link).find(Boolean) || '';
+      const summaryArrowHtml = summaryDetailsLink
+        ? `<a href="${escAttr(summaryDetailsLink)}" target="_blank" class="cp-details-arrow" onclick="event.stopPropagation()" tabindex="-1">↗</a>`
+        : '';
       const fmt = (stList[0] && stList[0].format) ? String(stList[0].format) : '';
       const showFormat = fmt && fmt.toUpperCase() !== 'UNKNOWN' && fmt !== '-';
       const runtimeVal = m.runtime || (stList[0] && stList[0].runtime);
@@ -470,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="accordion-button cp-accordion-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
               <div class="cp-accordion-header-inner">
                 <div>
-                  <span class="cp-film-title">${rankBadge}${esc(m.title)}${likedBadge}</span>
+                  <span class="cp-film-title">${rankBadge}${titleHtml(m.title, summaryCinemas)}${summaryArrowHtml}${likedBadge}</span>
                   <span class="cp-film-meta">${meta2}</span>
                 </div>
               </div>

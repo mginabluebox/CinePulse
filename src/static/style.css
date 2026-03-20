@@ -223,21 +223,21 @@
 
 /* ── Period sections (Morning / Afternoon / Evening) ──────────────────── */
 .cp-period-section {
-    margin-top: 1.75rem;
+    margin-top: 2.25rem;
 }
 
 .cp-period-section:first-child {
-    margin-top: .75rem;
+    margin-top: 1rem;
 }
 
 .cp-period-section-title {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: .62rem;
+    font-size: .8rem;
     font-weight: 700;
-    letter-spacing: .18em;
+    letter-spacing: .14em;
     text-transform: uppercase;
-    color: var(--cp-text-muted);
-    border-bottom: 1px solid var(--cp-border);
+    color: var(--cp-text);
+    border-bottom: 1.5px solid var(--cp-text);
     padding-bottom: .4rem;
     margin-bottom: 0;
 }
@@ -989,6 +989,108 @@
 }
 
 .hidden { display: none !important; }
+
+/* ── Cinema filter pills ─────────────────────────────────────────────────── */
+.cp-cinema-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: 1rem;
+}
+
+.cp-cinema-filter-btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: var(--cp-surface);
+    color: var(--cp-text-muted);
+    border: 1px solid var(--cp-border);
+    padding: .3rem .75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.cp-cinema-filter-btn:hover {
+    border-color: var(--cp-accent);
+    color: var(--cp-accent);
+}
+
+.cp-cinema-filter-btn.active {
+    background: var(--cp-accent);
+    border-color: var(--cp-accent);
+    color: #fff;
+}
+
+/* ── Title @ Cinema styling ─────────────────────────────────────────────── */
+.cp-title-cinema {
+    color: var(--cp-text-muted);
+    font-weight: 400;
+    font-size: .9em;
+}
+
+/* ── Cinema grouping (calendar) ─────────────────────────────────────────── */
+.cp-cinema-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .6rem;
+    font-weight: 500;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    margin: .85rem 0 .2rem;
+}
+
+.cp-cinema-group {
+    margin-bottom: .5rem;
+}
+
+.cp-hidden-film {
+    display: none;
+}
+
+.cp-show-more-btn {
+    background: none;
+    border: none;
+    padding: .25rem 0;
+    font-size: .8rem;
+    color: var(--cp-text-muted);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.cp-show-more-btn:hover {
+    color: var(--cp-accent);
+}
+
+/* ── Details arrow (↗ on film title, visible when banner expanded) ───────── */
+.cp-details-arrow {
+    display: inline-block;
+    margin-left: .3em;
+    font-size: .75em;
+    color: var(--cp-text-muted);
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity .2s;
+    pointer-events: none;
+}
+
+.cp-film-banner.expanded .cp-details-arrow {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Swipe summary: arrow visible when Bootstrap accordion item is open */
+#movieSwipeSummary .accordion-button:not(.collapsed) .cp-details-arrow {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cp-details-arrow:hover {
+    color: var(--cp-accent);
+}
 
 /* ── noRecs placeholder ─────────────────────────────────────────────────── */
 #cardDeck #noRecs {

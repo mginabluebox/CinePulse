@@ -82,6 +82,7 @@ def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie
                 Showtime.synopsis,
                 Showtime.cinema,
                 Showtime.image_url,
+                Showtime.details_link,
                 Showtime.show_time.label('raw_show_time'),
             )
             .filter(
@@ -113,6 +114,7 @@ def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie
                     "cinema": row.cinema,
                     "ticket_link": row.ticket_link,
                     "image_url": row.image_url,
+                    "details_link": row.details_link,
                     "raw_show_time": row.raw_show_time,
                 }
             )
@@ -174,6 +176,7 @@ def get_showtimes(
             func.coalesce(Showtime.format, '-').label('format'),
             Showtime.synopsis,
             Showtime.cinema,
+            Showtime.details_link,
         ).filter(
             Showtime.show_time >= start_date,
             Showtime.show_time < end_date,
@@ -198,6 +201,7 @@ def get_showtimes(
                 "cinema": row.cinema,
                 "ticket_link": row.ticket_link,
                 "image_url": row.image_url,
+                "details_link": row.details_link,
             }
             for row in showtimes
         ]
