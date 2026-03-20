@@ -1,6 +1,7 @@
 import scrapy
 from datetime import datetime
 
+
 class MetrographSpider(scrapy.Spider):
     name = 'metrograph'
     start_urls = ['https://metrograph.com/film/']
@@ -8,62 +9,59 @@ class MetrographSpider(scrapy.Spider):
     def parse(self, response):
         for block in response.css('div.col-sm-12.homepage-in-theater-movie'):
             ### MOVIE-LEVEL INFO
-            ## Get movie title
-            title = block.css('h3.movie_title a::text').get(default="").strip()
-
-            # Poster image used on the listing
+            title = block.css('h3.movie_title a::text').get(default='').strip()
+            detail_href = block.css('h3.movie_title a::attr(href)').get()
             image_url = block.css('img::attr(src)').get()
-            
+
             # the last 2 h5s are always director, year / runtime / format
             descript = block.css('h5::text').getall()
 
-            ## Get director(s), save first 2 if there are more than 2
             try:
-                directors = [x.strip() for x in descript[-2].replace('Director:','').split(',')] 
+                directors = [x.strip() for x in descript[-2].replace('Director:', '').split(',')]
                 director1 = directors[0]
-                director2 = None if len(directors) == 1 else directors[1] # only save the first 2 if more than 2 directors
-            except:
+                director2 = None if len(directors) == 1 else directors[1]
+            except Exception:
                 director1 = None
                 director2 = None
 
-            ## Get movie year, runtime, format
             try:
                 year, runtime, format = descript[-1].split('/')
                 year, runtime, format = year.strip(), runtime.strip(), format.strip()
-            except:
-                # sometimes format doesn't exist
-                year, runtime = descript[-1].split('/')
-                year, runtime = year.strip(), runtime.strip()
-                format = 'UNKNOWN'
-            
-            runtime = int(runtime.replace('min','').strip())
+            except Exception:
+                try:
+                    year, runtime = descript[-1].split('/')
+                    year, runtime = year.strip(), runtime.strip()
+                    format = 'UNKNOWN'
+                except Exception:
+                    year = runtime = None
+                    format = 'UNKNOWN'
 
-            ## Get synopsis
-            # todo: get full synopsis
-            synopsis = block.css('p.synopsis::text').get()
+            try:
+                runtime = int(runtime.replace('min', '').strip())
+            except Exception:
+                runtime = None
 
             ### SHOWTIME-LEVEL INFO
-            showtimes = block.css('div.showtimes')
-            # accept either <h5 class="sr-only"> or plain <h6> headings
-            headings = showtimes.css('h5.sr-only, h6')
-            days = showtimes.css('div.film_day')
+            showtimes = []
+            showtimes_block = block.css('div.showtimes')
+            headings = showtimes_block.css('h5.sr-only, h6')
+            days = showtimes_block.css('div.film_day')
             for heading, day_div in zip(headings, days):
-                # heading example: <h5 class="sr-only">Sun Dec <span class="day-number">14</span></h5>
-                date_text = heading.xpath('normalize-space(text())').get()  # e.g. "Sun Dec"
-                day_number = heading.css('span.day-number::text').get()    # e.g. "14"
+                date_text = heading.xpath('normalize-space(text())').get()
+                day_number = heading.css('span.day-number::text').get()
                 time_el = day_div.css('a')
-                time_text = time_el.xpath('normalize-space(text())').get()  # e.g. "4:40pm" or "Sold Out"
-                
-                # Defensive checks
+                time_text = time_el.xpath('normalize-space(text())').get()
+
                 if not time_text:
-                    self.logger.warning(f"Skipping showtime (no time) for title={title!r} date={date_text!r} day_number={day_number!r}")
+                    self.logger.warning(
+                        f"Skipping showtime (no time) for title={title!r} "
+                        f"date={date_text!r} day_number={day_number!r}"
+                    )
                     continue
                 time_text = time_text.strip()
-                
-                # build candidate date strings (preserve your existing parsing logic below)
+
                 candidates = []
                 if date_text:
-                    # date_text like "Sun Dec" -> month part is second token
                     parts = date_text.split()
                     month_part = parts[1] if len(parts) > 1 else parts[0]
                     if day_number:
@@ -72,12 +70,11 @@ class MetrographSpider(scrapy.Spider):
                     else:
                         candidates.append(f"{date_text} {time_text}")
 
-                # possible datetime formats to try
                 date_formats = [
-                    "%b %d %I:%M%p",   # e.g. Dec 14 4:00PM (abbr month)
-                    "%B %d %I:%M%p",   # e.g. December 14 4:00PM (full month)
-                    "%a %b %d %I:%M%p",# e.g. Sun Dec 14 4:00PM
-                    "%A %B %d %I:%M%p",# e.g. Sunday December 14 4:00PM
+                    "%b %d %I:%M%p",
+                    "%B %d %I:%M%p",
+                    "%a %b %d %I:%M%p",
+                    "%A %B %d %I:%M%p",
                     "%b %d %I:%M %p",
                     "%B %d %I:%M %p",
                     "%a %b %d %I:%M %p",
@@ -96,46 +93,88 @@ class MetrographSpider(scrapy.Spider):
                         break
 
                 if not parsed_dt:
-                    # final fallback: try to extract numeric day with regex and month name/abbr
-                    self.logger.error(f"Failed to parse date/time for title={title!r}: date_text={date_text!r} day_number={day_number!r} time={time_text!r}")
+                    self.logger.error(
+                        f"Failed to parse date/time for title={title!r}: "
+                        f"date_text={date_text!r} day_number={day_number!r} time={time_text!r}"
+                    )
                     continue
 
-                # add year using today's date
                 today = datetime.today()
                 current_year = today.year
-                # if the parsed month is earlier in the year than now, assume it's next year
                 if parsed_dt.month < today.month:
                     current_year += 1
-
                 timestamp = parsed_dt.replace(year=current_year)
 
-                # derive show day name from the final timestamp (after year is applied)
                 try:
                     show_day = timestamp.strftime('%A')
                 except Exception:
                     show_day = None
- 
 
-                ## Get ticket link safely
                 ticket_link = 'sold_out'
                 title_attr = day_div.css('a::attr(title)').get()
                 href_attr = day_div.css('a::attr(href)').get()
                 if title_attr and 'Buy Tickets' in title_attr and href_attr:
                     ticket_link = href_attr
 
-                yield {
-                    'title': title,
+                showtimes.append({
                     'show_time': timestamp,
                     'show_day': show_day,
                     'ticket_link': ticket_link,
+                })
 
+            if not showtimes or not detail_href:
+                continue
+
+            yield scrapy.Request(
+                response.urljoin(detail_href),
+                callback=self.parse_film,
+                meta={
+                    'showtimes': showtimes,
+                    'title': title,
                     'image_url': image_url,
-
                     'director1': director1,
                     'director2': director2,
                     'year': year,
                     'runtime': runtime,
                     'format': format,
+                },
+            )
 
-                    'synopsis': synopsis,
-                }
+    def parse_film(self, response):
+        meta = response.meta
+        showtimes = meta['showtimes']
+
+        # Full synopsis from detail page
+        synopsis = None
+        for selector in (
+            'div.film-synopsis p',
+            'div.synopsis p',
+            '.film-body p',
+            '.description p',
+            'div.film-info p',
+            'article p',
+        ):
+            for p in response.css(selector):
+                text = ' '.join(p.css('::text').getall()).strip()
+                if len(text) > 60:
+                    synopsis = text
+                    break
+            if synopsis:
+                break
+
+        for st in showtimes:
+            yield {
+                'cinema': 'METROGRAPH',
+                'title': meta['title'],
+                'show_time': st['show_time'],
+                'show_day': st['show_day'],
+                'ticket_link': st['ticket_link'],
+                'details_link': response.url,
+                'image_url': meta['image_url'],
+                'director1': meta['director1'],
+                'director2': meta['director2'],
+                'year': meta['year'],
+                'runtime': meta['runtime'],
+                'format': meta['format'],
+                'synopsis': synopsis,
+            }

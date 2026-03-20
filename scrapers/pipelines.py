@@ -19,7 +19,14 @@ from datetime import datetime, timezone
 # Find .env in the root folder
 load_dotenv(find_dotenv())
 
-class MetrographScraperPipeline:
+class CinemaScraperPipeline:
+    def __init__(self, test_mode=False):
+        self.test_mode = test_mode
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(test_mode=crawler.settings.getbool('TEST_MODE', False))
+
     def open_spider(self, spider):
         # Connect via SQLAlchemy engine to reuse env logic in setup_db.get_engine()
         engine = get_engine()
@@ -36,7 +43,9 @@ class MetrographScraperPipeline:
         try:
             title = item.get('title')
             year = item.get('year')
-            cinema = 'METROGRAPH'
+            cinema = item.get('cinema') or 'UNKNOWN'
+            if self.test_mode:
+                cinema = f'TEST_{cinema}'
 
             ## Update movies table
             # First: try UPDATE existing entry in movies table
@@ -50,7 +59,8 @@ class MetrographScraperPipeline:
                     scraped_synopsis = %s,
                     scraped_director1 = %s,
                     scraped_cinema = %s,
-                    scraped_image_url = %s
+                    scraped_image_url = %s,
+                    scraped_details_link = %s
                 WHERE lower(trim(title)) = lower(trim(%s))
                   AND (year IS NOT DISTINCT FROM %s)
                 RETURNING id;
@@ -62,6 +72,7 @@ class MetrographScraperPipeline:
                 item.get('director1'),
                 cinema,
                 item.get('image_url'),
+                item.get('details_link'),
                 title,
                 year,
             ))
@@ -73,8 +84,8 @@ class MetrographScraperPipeline:
                 # Then: INSERT a new entry
                 spider.logger.debug(f"Pipeline: inserting item {(item.get('title'))} into movies table")
                 self.cur.execute("""
-                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema, scraped_image_url)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema, scraped_image_url, scraped_details_link)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id;
                 """, (
                     title,
@@ -82,8 +93,9 @@ class MetrographScraperPipeline:
                     datetime.now(timezone.utc),
                     item.get('synopsis'),
                     item.get('director1'),
-                    'METROGRAPH',
+                    cinema,
                     item.get('image_url'),
+                    item.get('details_link'),
                 ))
                 movie_id = self.cur.fetchone()[0]
     
@@ -98,6 +110,7 @@ class MetrographScraperPipeline:
                 show_time,
                 show_day,
                 ticket_link,
+                details_link,
                 image_url,
                 director1,
                 director2,
@@ -107,19 +120,20 @@ class MetrographScraperPipeline:
                 synopsis,
                 cinema
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (movie_id, show_time, cinema, format)
             DO UPDATE SET
-                crawled_at  = EXCLUDED.crawled_at,
-                title       = EXCLUDED.title,
-                year        = EXCLUDED.year,
-                show_day    = EXCLUDED.show_day,
-                ticket_link = EXCLUDED.ticket_link,
-                image_url   = EXCLUDED.image_url,
-                director1   = EXCLUDED.director1,
-                director2   = EXCLUDED.director2,
-                runtime     = EXCLUDED.runtime,
-                synopsis    = EXCLUDED.synopsis;
+                crawled_at   = EXCLUDED.crawled_at,
+                title        = EXCLUDED.title,
+                year         = EXCLUDED.year,
+                show_day     = EXCLUDED.show_day,
+                ticket_link  = EXCLUDED.ticket_link,
+                details_link = EXCLUDED.details_link,
+                image_url    = EXCLUDED.image_url,
+                director1    = EXCLUDED.director1,
+                director2    = EXCLUDED.director2,
+                runtime      = EXCLUDED.runtime,
+                synopsis     = EXCLUDED.synopsis;
             """, (
                 movie_id,
                 title,
@@ -127,6 +141,7 @@ class MetrographScraperPipeline:
                 item.get('show_time'),
                 item.get('show_day'),
                 item.get('ticket_link'),
+                item.get('details_link'),
                 item.get('image_url'),
                 item.get('director1'),
                 item.get('director2'),

@@ -34,10 +34,12 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 def run_spider():
     """
-    Run the Metrograph spider and process the scraped data.
+    Run all cinema spiders and process the scraped data.
     """
     process = CrawlerProcess(get_project_settings())
     process.crawl('metrograph')
+    process.crawl('film_forum')
+    process.crawl('ifc_center')
     process.start()
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -52,7 +54,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
-    LOGGER.info("Running Metrograph spider...")
+    LOGGER.info("Running all cinema spiders...")
     run_spider()
     LOGGER.info("Spider complete. Starting embedding sync...")
 
