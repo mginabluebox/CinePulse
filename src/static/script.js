@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   let currentRunId = null;
 
+  // Swipe feedback icons — change here to update both the card overlay and summary badges
+  const _svgAttrs = 'xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  const SWIPE_ICON_LIKE    = `<svg ${_svgAttrs} style="color:#5cb85c"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>`;
+  const SWIPE_ICON_DISLIKE = `<svg ${_svgAttrs} style="color:#c42b2b"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L13 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>`;
+
   // Simple runtime storage for swipes
   window._swipeResults = { likes: [], dislikes: [] };
   window._swipeLog = [];
@@ -82,10 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const esc = (s) => String(s || '').replace(/[&<>\"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const escAttr = (s) => encodeURI(String(s || ''));
 
-  // Render title with cinema suffix styled separately
-  function titleHtml(title, cinemas) {
+  // Render title with cinema suffix styled separately; detailsLink makes the cinema+arrow clickable
+  function titleHtml(title, cinemas, detailsLink) {
     if (!cinemas || !cinemas.length) return esc(title);
-    return `${esc(title)}<span class="cp-title-cinema"> @ ${esc(cinemas.join(' & '))}</span>`;
+    const cinemaText = ` @ ${esc(cinemas.join(' & '))}`;
+    if (detailsLink) {
+      const onclick = `event.stopPropagation();window.open('${escAttr(detailsLink)}','_blank')`;
+      return `${esc(title)}<span class="cp-title-cinema" onclick="${onclick}">${cinemaText}<span class="cp-details-arrow"> ↗</span></span>`;
+    }
+    return `${esc(title)}<span class="cp-title-cinema">${cinemaText}</span>`;
   }
 
   // --- Shared showtime rendering (consistent with landing page) ---
@@ -174,9 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const simHtml = typeof m.similarity === 'number'
         ? `<span class="cp-similarity">${Math.round(m.similarity * 100)}% match</span>`
         : '';
-      const arrowHtml = detailsLink
-        ? `<a href="${escAttr(detailsLink)}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>`
-        : '';
       const timesHtml = renderShowtimeBtns(m.showtimes);
       const hasSynopsis = !!m.synopsis;
       const synopsisHtml = hasSynopsis
@@ -188,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="cp-film-banner-trigger${hasSynopsis ? ' cp-expandable' : ''}">
               <div class="cp-film-thumb-wrap">${imgHtml}</div>
               <div class="cp-film-info">
-                <span class="cp-film-title">${titleHtml(m.title, cinemas)}${arrowHtml}</span>
+                <span class="cp-film-title">${titleHtml(m.title, cinemas, detailsLink)}</span>
                 <span class="cp-film-meta">${meta}</span>
                 ${simHtml}
                 ${synopsisHtml}
@@ -306,6 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     card.addEventListener('pointerdown', (ev) => {
       if (ev.target.closest && ev.target.closest('a')) return;
+      ev.preventDefault();
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
       card.setPointerCapture(ev.pointerId);
       startX = ev.clientX; startY = ev.clientY; dragging = true; card.style.transition = 'none';
       swipeStartTimes.set(card, Date.now());
@@ -313,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     card.addEventListener('pointermove', (ev) => {
       if (!dragging) return;
+      ev.preventDefault();
       currentX = ev.clientX - startX; currentY = ev.clientY - startY;
       setTransform(currentX, currentY, currentX / 20);
       if (Math.abs(currentX) > threshold) {
@@ -381,10 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const imgUrl = it.scraped_image_url || it.image_url;
       const cinemaList = [...new Set((it.showtimes || []).map(s => s.cinema).filter(Boolean))];
       const imgHtml = imgUrl ? `<div class="card-img-wrapper mb-2"><img src="${escAttr(imgUrl)}" alt="${esc(it.title)} poster" class="swipe-card-img"></div>` : '';
-      const cinemas = Array.isArray(it.cinemas) ? it.cinemas : [];
-      let cinemaHtml = '';
-      // showtimes removed from card view per request
-
       const metaBits = [];
       const metaParts = [];
       if (it.year) metaParts.push(esc(it.year));
@@ -393,11 +399,13 @@ document.addEventListener('DOMContentLoaded', () => {
       metaParts.forEach(p => metaBits.push(p));
       const metaLine = metaBits.join(' • ');
       card.innerHTML = `
+        <div class="swipe-feedback-overlay swipe-feedback-like">${SWIPE_ICON_LIKE}</div>
+        <div class="swipe-feedback-overlay swipe-feedback-nope">${SWIPE_ICON_DISLIKE}</div>
         <div>
           ${imgHtml}
           <div class="title">${titleHtml(it.title, cinemaList)}</div>
           <div class="small text-muted">${metaLine}</div>
-          <div class="reason">${esc(it.reason || '')}</div>
+          ${it.reason ? `<div class="reason"><strong>Why you might like it:</strong> ${esc(it.reason)}</div>` : ''}
           <div class="synopsis">${esc(it.synopsis || '')}</div>
         </div>
       `;
@@ -458,9 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const stList = Array.isArray(m.showtimes) ? m.showtimes : [];
       const summaryCinemas = [...new Set(stList.map(s => s.cinema).filter(Boolean))];
       const summaryDetailsLink = stList.map(s => s.details_link).find(Boolean) || '';
-      const summaryArrowHtml = summaryDetailsLink
-        ? `<a href="${escAttr(summaryDetailsLink)}" target="_blank" class="cp-details-arrow" onclick="event.stopPropagation()" tabindex="-1">↗</a>`
-        : '';
       const fmt = (stList[0] && stList[0].format) ? String(stList[0].format) : '';
       const showFormat = fmt && fmt.toUpperCase() !== 'UNKNOWN' && fmt !== '-';
       const runtimeVal = m.runtime || (stList[0] && stList[0].runtime);
@@ -468,15 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const headingId = `swipe-heading-${idx}`;
       const collapseId = `swipe-collapse-${idx}`;
       const likedBadge = m.liked
-        ? '<span class="ms-2 text-success" aria-label="Liked">▲</span>'
-        : '<span class="ms-2 text-danger" aria-label="Disliked">▼</span>';
-      const rankBadge = idx === 0
-        ? '<span class="badge rounded-pill me-2" style="background-color:#f6e08e;color:#5c4a00;">1</span>'
-        : idx === 1
-          ? '<span class="badge rounded-pill me-2" style="background-color:#e5e5e5;color:#4a4a4a;">2</span>'
-          : idx === 2
-            ? '<span class="badge rounded-pill me-2" style="background-color:#e4b189;color:#4f2e00;">3</span>'
-            : '';
+        ? `<span class="me-2 cp-swipe-badge" aria-label="Liked">${SWIPE_ICON_LIKE}</span>`
+        : `<span class="me-2 cp-swipe-badge" aria-label="Disliked">${SWIPE_ICON_DISLIKE}</span>`;
       const reason = m.reason ? `<p class="mb-2"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
       const image = m.scraped_image_url || m.image_url;
       const imageHtml = image ? `
@@ -497,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="accordion-button cp-accordion-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
               <div class="cp-accordion-header-inner">
                 <div>
-                  <span class="cp-film-title">${rankBadge}${titleHtml(m.title, summaryCinemas)}${summaryArrowHtml}${likedBadge}</span>
+                  <span class="cp-film-title">${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}</span>
                   <span class="cp-film-meta">${meta2}</span>
                 </div>
               </div>
@@ -530,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const preference = (moviePreferenceInput && moviePreferenceInput.value || '').trim();
       if (!preference) { if (movieErrEl) { movieErrEl.textContent = 'Please enter a preference.'; movieErrEl.classList.remove('d-none'); } return; }
       if (movieErrEl) movieErrEl.classList.add('d-none');
-      if (movieSubmitBtn) { movieSubmitBtn.disabled = true; movieSubmitBtn.textContent = 'Thinking...'; }
+      if (movieSubmitBtn) { movieSubmitBtn.style.width = movieSubmitBtn.offsetWidth + 'px'; movieSubmitBtn.style.justifyContent = 'center'; movieSubmitBtn.disabled = true; movieSubmitBtn.innerHTML = '<span class="cp-spinner"></span>'; }
       try {
         const res = await fetch('/api/recommend_movies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preference, session_token: sessionToken }) });
         const data = await res.json();
@@ -547,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {
         if (movieErrEl) { movieErrEl.textContent = 'Network error. Try again.'; movieErrEl.classList.remove('d-none'); }
       } finally {
-        if (movieSubmitBtn) { movieSubmitBtn.disabled = false; movieSubmitBtn.textContent = 'Get recommendations'; }
+        if (movieSubmitBtn) { movieSubmitBtn.disabled = false; movieSubmitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M5 3v4"/><path d="M3 5h4"/><path d="M19 17v4"/><path d="M17 19h4"/></svg> Recommend'; movieSubmitBtn.style.width = ''; movieSubmitBtn.style.justifyContent = ''; }
       }
     });
   }

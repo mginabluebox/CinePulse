@@ -252,8 +252,8 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
     4) Fetch up to 5 upcoming showtimes for the LLM-selected movies (earliest→latest).
     """
 
-    # Step 1: fetch all eligible candidates (future showtimes + embedding)
-    candidates = get_movies_with_future_showtimes(engine=db_engine)
+    # Step 1: fetch all eligible candidates (future non-sold-out showtimes + embedding)
+    candidates = get_movies_with_future_showtimes(engine=db_engine, exclude_sold_out=True)
     if not candidates:
         return []
 
@@ -288,8 +288,8 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
     if not selected_ids:
         return []
 
-    # Step 5: fetch showtimes (future only, earliest first, capped)
-    showtime_map = get_future_showtimes_for_movie_ids(selected_ids, limit_per_movie=showtimes_per_movie, engine=db_engine)
+    # Step 5: fetch showtimes (future, non-sold-out, earliest first, capped)
+    showtime_map = get_future_showtimes_for_movie_ids(selected_ids, limit_per_movie=showtimes_per_movie, engine=db_engine, exclude_sold_out=True)
 
     results = []
     for mid, reason in id_reason_pairs:
@@ -383,8 +383,9 @@ def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
 
         # Consume quota only for cinemas still below limit
         for cn in cinemas:
-            if cinema_counts.get(cn, 0) < top_n_per_cinema:
-                cinema_counts[cn] = cinema_counts.get(cn, 0) + 1
+            cur = cinema_counts.get(cn, 0)
+            if cur < top_n_per_cinema:
+                cinema_counts[cn] = cur + 1
 
         poster_url = c.get('scraped_image_url') or next(
             (s.get('image_url') for s in st_list if s.get('image_url')), None

@@ -4,13 +4,21 @@ from .models import Showtime, Movie
 from typing import Iterable, Optional, Dict, List, Any
 
 
-def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, exclude_sold_out: bool = False) -> List[Dict[str, Any]]:
     """Return movies that have at least one future showtime and an embedding.
 
     Movies are ordered by their earliest upcoming showtime. If limit is provided, it caps the number of rows returned.
+    If exclude_sold_out is True, only movies with at least one non-sold-out future showtime are included.
     """
     session = get_session(engine)
     try:
+        filters = [
+            Showtime.show_time >= func.now(),
+            Movie.embedding.isnot(None),
+        ]
+        if exclude_sold_out:
+            filters.append(Showtime.ticket_link != 'sold_out')
+
         query = (
             session.query(
                 Movie.id,
@@ -23,10 +31,7 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None) -
                 func.min(Showtime.show_time).label('first_show_time'),
             )
             .join(Showtime, Showtime.movie_id == Movie.id)
-            .filter(
-                Showtime.show_time >= func.now(),
-                Movie.embedding.isnot(None),
-            )
+            .filter(*filters)
             .group_by(Movie.id, Movie.title, Movie.year, Movie.scraped_director1, Movie.scraped_synopsis, Movie.embedding)
             .order_by(func.min(Showtime.show_time).asc())
         )
@@ -55,16 +60,24 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None) -
         session.close()
 
 
-def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie: int = 5, engine=None) -> Dict[int, List[Dict[str, Any]]]:
+def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie: int = 5, engine=None, exclude_sold_out: bool = False) -> Dict[int, List[Dict[str, Any]]]:
     """Fetch future showtimes for the given movie ids (ordered earliest→latest, capped per movie).
 
     Returns a mapping of movie_id -> list of showtime dicts.
+    If exclude_sold_out is True, sold-out showtimes are omitted from results.
     """
     session = get_session(engine)
     try:
         ids = [int(mid) for mid in movie_ids] if movie_ids else []
         if not ids:
             return {}
+
+        filters = [
+            Showtime.movie_id.in_(ids),
+            Showtime.show_time >= func.now(),
+        ]
+        if exclude_sold_out:
+            filters.append(Showtime.ticket_link != 'sold_out')
 
         showtime_rows = (
             session.query(
@@ -85,10 +98,7 @@ def get_future_showtimes_for_movie_ids(movie_ids: Iterable[int], limit_per_movie
                 Showtime.details_link,
                 Showtime.show_time.label('raw_show_time'),
             )
-            .filter(
-                Showtime.movie_id.in_(ids),
-                Showtime.show_time >= func.now(),
-            )
+            .filter(*filters)
             .order_by(Showtime.show_time.asc())
             .all()
         )

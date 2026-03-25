@@ -59,7 +59,7 @@
             {% endif %}
           {% endfor %}
           {% if vis.hidden %}
-            <button type="button" class="cp-show-more-btn" data-cinema="{{ cinema_group.grouper }}" data-count="{{ vis.hidden|length }}" data-expanded="false">Show {{ vis.hidden|length }} more from {{ cinema_group.grouper }}…</button>
+            <button type="button" class="cp-show-more-btn" data-cinema="{{ cinema_group.grouper }}" data-count="{{ vis.hidden|length }}" data-expanded="false">Show {{ vis.hidden|length }} more…</button>
             {% for item in vis.hidden %}
               {{ render_film_banner(item.film, item.psts, 'cp-hidden-film') }}
             {% endfor %}

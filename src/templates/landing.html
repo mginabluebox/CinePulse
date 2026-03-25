@@ -189,7 +189,7 @@ if (calView) {
       var films = Array.from(group.querySelectorAll('.cp-film-banner'));
       films.slice(2).forEach(function(f) { f.classList.add('cp-hidden-film'); });
       if (films[2]) { group.insertBefore(btn, films[2]); }
-      btn.textContent = 'Show ' + btn.dataset.count + ' more from ' + btn.dataset.cinema + '\u2026';
+      btn.textContent = 'Show ' + btn.dataset.count + ' more\u2026';
       btn.dataset.expanded = 'false';
     } else {
       // Expand: show all hidden films and move button to end of group
@@ -205,6 +205,28 @@ if (calView) {
 
 // Cinema filter (multi-select)
 var selectedCinemas = new Set(); // empty = all shown
+
+function _applyFilterToDOM() {
+  var showAll = selectedCinemas.size === 0;
+  document.querySelectorAll('.cp-cinema-group').forEach(function(group) {
+    group.style.display = (showAll || selectedCinemas.has(group.dataset.cinema)) ? '' : 'none';
+  });
+  document.querySelectorAll('.cp-cinema-label').forEach(function(label) {
+    label.style.display = (showAll || selectedCinemas.has(label.dataset.cinema)) ? '' : 'none';
+  });
+  document.querySelectorAll('.cp-period-section').forEach(function(section) {
+    var hasVisible = Array.from(section.querySelectorAll('.cp-cinema-group')).some(function(g) {
+      return g.style.display !== 'none';
+    });
+    section.style.display = hasVisible ? '' : 'none';
+  });
+  if (typeof window.renderShowtimePage === 'function') {
+    var searchView = document.getElementById('searchResultsView');
+    if (searchView && searchView.style.display !== 'none') {
+      window.renderShowtimePage(1);
+    }
+  }
+}
 
 function applyCinemaFilter(cinema) {
   if (cinema === 'all') {
@@ -224,47 +246,12 @@ function applyCinemaFilter(cinema) {
       btn.classList.toggle('active', selectedCinemas.has(btn.dataset.cinema));
     }
   });
-  document.querySelectorAll('.cp-cinema-group').forEach(function(group) {
-    group.style.display = (showAll || selectedCinemas.has(group.dataset.cinema)) ? '' : 'none';
-  });
-  document.querySelectorAll('.cp-cinema-label').forEach(function(label) {
-    label.style.display = (showAll || selectedCinemas.has(label.dataset.cinema)) ? '' : 'none';
-  });
-  document.querySelectorAll('.cp-period-section').forEach(function(section) {
-    var hasVisible = Array.from(section.querySelectorAll('.cp-cinema-group')).some(function(g) {
-      return g.style.display !== 'none';
-    });
-    section.style.display = hasVisible ? '' : 'none';
-  });
-  filterSearchResults();
-}
-
-function filterSearchResults() {
-  var searchView = document.getElementById('searchResultsView');
-  if (searchView && searchView.style.display !== 'none') {
-    if (typeof window.renderShowtimePage === 'function') {
-      window.renderShowtimePage(1);
-    }
-    return;
-  }
+  _applyFilterToDOM();
 }
 
 // Re-apply current filter state to newly injected DOM (e.g. week 2 panels)
 function reapplyCinemaFilter() {
-  var showAll = selectedCinemas.size === 0;
-  document.querySelectorAll('.cp-cinema-group').forEach(function(group) {
-    group.style.display = (showAll || selectedCinemas.has(group.dataset.cinema)) ? '' : 'none';
-  });
-  document.querySelectorAll('.cp-cinema-label').forEach(function(label) {
-    label.style.display = (showAll || selectedCinemas.has(label.dataset.cinema)) ? '' : 'none';
-  });
-  document.querySelectorAll('.cp-period-section').forEach(function(section) {
-    var hasVisible = Array.from(section.querySelectorAll('.cp-cinema-group')).some(function(g) {
-      return g.style.display !== 'none';
-    });
-    section.style.display = hasVisible ? '' : 'none';
-  });
-  filterSearchResults();
+  _applyFilterToDOM();
 }
 
 var cinemaFilterEl = document.getElementById('cinemaFilter');
