@@ -579,6 +579,15 @@
     margin-top: 2rem;
 }
 
+.cp-last-updated {
+    font-size: .62rem;
+    color: #b0a89e;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
 /* ── Main app layout ────────────────────────────────────────────────────── */
 .cp-main {
     padding-bottom: 4rem;

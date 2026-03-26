@@ -292,6 +292,23 @@ def get_showtimes_by_ids(ids: Iterable[int], engine=None):
         session.close()
 
 
+def get_last_scraped_at(engine=None) -> Optional[str]:
+    """Return the most recent crawled_at timestamp from showtimes as a formatted string.
+
+    Returns a string like 'Mar 23, 2026' or None if no showtimes exist.
+    """
+    session = get_session(engine)
+    try:
+        result = session.query(func.max(Showtime.crawled_at)).scalar()
+        if result is None:
+            return None
+        return result.strftime('%-d %b %Y')
+    except Exception:
+        return None
+    finally:
+        session.close()
+
+
 def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt_num_token: int, prompt: str, response: str, error_code: int = 0, run_id: Optional[str] = None, session_token: Optional[str] = None, engine=None):
     """Insert a recommendation log row into recommendation_logs table.
 

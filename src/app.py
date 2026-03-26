@@ -1,4 +1,4 @@
-from database.queries import get_showtimes
+from database.queries import get_showtimes, get_last_scraped_at
 from database.setup_db import get_engine
 from flask import Flask, render_template, request, jsonify
 from flask_caching import Cache
@@ -98,7 +98,8 @@ def build_calendar(showtimes):
 def landing():
     showtimes = get_showtimes(interval_days=7, engine=engine)
     calendar = build_calendar(showtimes)
-    return render_template('landing.html', calendar=calendar)
+    last_scraped = get_last_scraped_at(engine=engine)
+    return render_template('landing.html', calendar=calendar, last_scraped=last_scraped)
 
 
 @app.route('/api/calendar_week2')
