@@ -687,7 +687,14 @@
     color: var(--cp-text-muted);
     margin: 1rem 0 .5rem;
     font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: .04em;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.cp-form-subcopy {
+    font-size: .82rem;
+    color: var(--cp-text-muted);
+    margin: .3rem 0 1rem;
 }
 
 .cp-empty-state {
@@ -1166,4 +1173,21 @@
     text-align: center;
     color: var(--cp-text-muted);
     z-index: 1;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.cp-footer {
+    border-top: 1px solid var(--cp-border);
+    margin-top: 4rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.cp-footer-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    font-size: .72rem;
+    color: #b0a89e;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: .04em;
+    text-transform: uppercase;
 }
