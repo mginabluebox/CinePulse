@@ -357,7 +357,7 @@
     display: flex;
     align-items: flex-start;
     gap: .85rem;
-    flex: 1 1 220px;
+    flex: 1 1 100%;
     min-width: 0;
     text-decoration: none;
     color: inherit;
@@ -372,13 +372,7 @@
     color: var(--cp-accent);
 }
 
-/* When expanded: trigger takes full row width; times wrap beneath */
-.cp-film-banner.expanded .cp-film-banner-trigger {
-    flex: 1 1 100%;
-}
-
 .cp-film-banner.expanded .cp-film-times {
-    margin-left: auto;
     padding-bottom: .75rem;
 }
 
@@ -447,9 +441,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: .5rem;
-    justify-content: flex-end;
-    flex-shrink: 0;
-    max-width: 50%;
+    justify-content: flex-start;
+    flex: 1 1 100%;
 }
 
 /* ── Film banner synopsis (inline, shown after thumbnail expansion) ──── */
@@ -462,7 +455,7 @@
 
 /* Expansion sets max-height/margin but NOT opacity — JS adds synopsis-visible after delay */
 .cp-film-banner.expanded .cp-banner-synopsis-inline {
-    max-height: 400px;
+    max-height: 2000px;
     margin-top: .6rem;
 }
 
@@ -557,9 +550,8 @@
 
 .cp-showtime-date-group {
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: .35rem;
 }
 
 .cp-showtime-date-label {
