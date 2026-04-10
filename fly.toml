@@ -4,7 +4,7 @@
 #
 
 app = 'cinepulse'
-primary_region = 'ewr'
+primary_region = 'sjc'
 
 [build]
 
@@ -16,7 +16,7 @@ primary_region = 'ewr'
   min_machines_running = 1
 
 [[vm]]
-  memory = '256mb'
+  memory = '512mb'
   cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 256
+  cpus = 1c
+  memory_mb = 512
