@@ -760,6 +760,7 @@
     color: var(--cp-text-muted);
     margin-bottom: 1rem;
     line-height: 1.6;
+    white-space: pre-line;
 }
 
 /* ── Table ──────────────────────────────────────────────────────────────── */

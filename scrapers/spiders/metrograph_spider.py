@@ -1,5 +1,36 @@
+import re
+
 import scrapy
 from datetime import datetime
+
+
+def _clean(val):
+    """Strip non-breaking spaces and leading/trailing whitespace from scraped text."""
+    if not isinstance(val, str):
+        return val
+    return val.replace('\xa0', ' ').strip()
+
+
+def _text_with_br(selector):
+    """Extract text from a Scrapy selector, converting <br> tags to \\n."""
+    def _walk(node):
+        parts = []
+        if node.text:
+            parts.append(node.text)
+        for child in node:
+            tag = child.tag if isinstance(child.tag, str) else ''
+            if tag.lower() == 'br':
+                parts.append('\n')
+            else:
+                parts.append(_walk(child))
+            if child.tail:
+                parts.append(child.tail)
+        return ''.join(parts)
+    raw = _walk(selector.root)
+    raw = re.sub(r'[ \t]+', ' ', raw)
+    raw = re.sub(r' *\n *', '\n', raw)
+    raw = re.sub(r'\n{3,}', '\n\n', raw)
+    return raw.strip()
 
 
 class MetrographSpider(scrapy.Spider):
@@ -155,26 +186,25 @@ class MetrographSpider(scrapy.Spider):
             'article p',
         ):
             for p in response.css(selector):
-                text = ' '.join(p.css('::text').getall()).strip()
+                text = _text_with_br(p)
                 if len(text) > 60:
                     synopsis = text
                     break
             if synopsis:
                 break
-
         for st in showtimes:
             yield {
                 'cinema': 'METROGRAPH',
-                'title': meta['title'],
+                'title': _clean(meta['title']),
                 'show_time': st['show_time'],
                 'show_day': st['show_day'],
                 'ticket_link': st['ticket_link'],
                 'details_link': response.url,
                 'image_url': meta['image_url'],
-                'director1': meta['director1'],
-                'director2': meta['director2'],
+                'director1': _clean(meta['director1']),
+                'director2': _clean(meta['director2']),
                 'year': meta['year'],
                 'runtime': meta['runtime'],
-                'format': meta['format'],
-                'synopsis': synopsis,
+                'format': _clean(meta['format']),
+                'synopsis': _clean(synopsis),
             }

@@ -4,6 +4,35 @@ import re
 import scrapy
 
 
+def _clean(val):
+    """Strip non-breaking spaces and leading/trailing whitespace from scraped text."""
+    if not isinstance(val, str):
+        return val
+    return val.replace('\xa0', ' ').strip()
+
+
+def _text_with_br(selector):
+    """Extract text from a Scrapy selector, converting <br> tags to \\n."""
+    def _walk(node):
+        parts = []
+        if node.text:
+            parts.append(node.text)
+        for child in node:
+            tag = child.tag if isinstance(child.tag, str) else ''
+            if tag.lower() == 'br':
+                parts.append('\n')
+            else:
+                parts.append(_walk(child))
+            if child.tail:
+                parts.append(child.tail)
+        return ''.join(parts)
+    raw = _walk(selector.root)
+    raw = re.sub(r'[ \t]+', ' ', raw)
+    raw = re.sub(r' *\n *', '\n', raw)
+    raw = re.sub(r'\n{3,}', '\n\n', raw)
+    return raw.strip()
+
+
 def _infer_year(month: int, day: int, today: datetime.date) -> int:
     """Pick the nearest upcoming year for a given month/day."""
     candidate = today.replace(month=month, day=day)
@@ -147,16 +176,23 @@ class IFCCenterSpider(scrapy.Spider):
 
         # --- Synopsis ---
         # IFC custom theme: <p> tags sit between <ul.schedule-list> and <ul.film-details>
+        # Some films include Q&A/event paragraphs in this zone (e.g. "Thursday, April 9 at 6:30:
+        # Sneak Preview + Q&A..."). Filter those out by detecting weekday+date patterns.
+        _event_re = re.compile(
+            r'^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[,\s]',
+            re.IGNORECASE,
+        )
         paragraphs = [
-            ' '.join(p.css('::text').getall()).strip()
+            _text_with_br(p)
             for p in response.xpath(
                 '//ul[contains(@class,"schedule-list")]'
                 '/following-sibling::p'
                 '[following-sibling::ul[contains(@class,"film-details")]]'
             )
-            if ' '.join(p.css('::text').getall()).strip()
+            if _text_with_br(p)
         ]
-        synopsis = ' '.join(paragraphs) or None
+        paragraphs = [p for p in paragraphs if not _event_re.match(p)]
+        synopsis = '\n'.join(paragraphs) or None
 
         # --- Poster (prefer detail page hero) ---
         detail_poster = (
@@ -169,16 +205,16 @@ class IFCCenterSpider(scrapy.Spider):
         for item in partial_items:
             yield {
                 'cinema': 'IFC CENTER',
-                'title': title,
+                'title': _clean(title),
                 'show_time': item['show_time'],
                 'show_day': item['show_day'],
                 'ticket_link': item['ticket_link'],
                 'details_link': response.url,
                 'image_url': poster_url,
-                'director1': director,
+                'director1': _clean(director),
                 'director2': None,
                 'year': year,
                 'runtime': runtime,
-                'format': format_val,
-                'synopsis': synopsis,
+                'format': _clean(format_val),
+                'synopsis': _clean(synopsis),
             }

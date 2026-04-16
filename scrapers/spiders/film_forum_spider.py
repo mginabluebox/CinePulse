@@ -4,6 +4,56 @@ import re
 import scrapy
 
 
+def _clean(val):
+    """Strip non-breaking spaces and leading/trailing whitespace from scraped text."""
+    if not isinstance(val, str):
+        return val
+    return val.replace('\xa0', ' ').strip()
+
+
+def _is_meta_strong(node):
+    """Return True if a <strong>/<b> lxml node contains Film Forum metadata."""
+    t = ''.join(node.itertext())
+    # Year + director line (standard metadata paragraph)
+    if re.search(r'\b\d{4}\b', t) and re.search(r'[Dd]irected\s+by', t):
+        return True
+    # Standalone "Approx. N min" line
+    if re.search(r'Approx\.\s+\d+\s*min', t, re.IGNORECASE):
+        return True
+    return False
+
+
+def _text_with_br(selector, skip_meta_strong=False):
+    """Extract text from a Scrapy selector, converting <br> tags to \\n.
+
+    If skip_meta_strong=True, <strong>/<b> blocks that contain Film Forum
+    metadata (year+director or Approx. runtime) are omitted from the output
+    while their surrounding text (tails) is preserved. This lets synopsis prose
+    be recovered from Pattern B pages where metadata and synopsis share a
+    single <p> element.
+    """
+    def _walk(node):
+        parts = []
+        if node.text:
+            parts.append(node.text)
+        for child in node:
+            tag = child.tag if isinstance(child.tag, str) else ''
+            if tag.lower() == 'br':
+                parts.append('\n')
+            elif skip_meta_strong and tag.lower() in ('strong', 'b') and _is_meta_strong(child):
+                pass  # drop the metadata block; tail is still appended below
+            else:
+                parts.append(_walk(child))
+            if child.tail:
+                parts.append(child.tail)
+        return ''.join(parts)
+    raw = _walk(selector.root)
+    raw = re.sub(r'[ \t]+', ' ', raw)
+    raw = re.sub(r' *\n *', '\n', raw)
+    raw = re.sub(r'\n{3,}', '\n\n', raw)
+    return raw.strip()
+
+
 def _extract_format(title: str) -> str:
     """Pull parenthetical format tag from title, e.g. '(35mm)' -> '35MM'."""
     m = re.search(r'\(([^)]+)\)', title)
@@ -143,7 +193,7 @@ class FilmForumSpider(scrapy.Spider):
             return
 
         # --- Metadata paragraph ---
-        # <p><strong>1970, India<br/>Directed by Satyajit Ray<br/>Starring...<br/>Approx. 116 min.</strong></p>
+        # <p><strong>India, 1970<br/>Directed by Satyajit Ray<br/>Starring...<br/>Approx. 116 min.</strong></p>
         # ::text pseudo-element gets text nodes split by <br> tags
         meta_lines = [
             t.strip()
@@ -157,7 +207,7 @@ class FilmForumSpider(scrapy.Spider):
 
         for line in meta_lines:
             if year is None:
-                m = re.match(r'^(\d{4})\b', line)
+                m = re.search(r'\b((?:19|20)\d{2})\b', line)
                 if m:
                     year = m.group(1)
             if director is None:
@@ -185,21 +235,42 @@ class FilmForumSpider(scrapy.Spider):
                     break
 
         # --- Synopsis ---
-        # Synopsis is the longest direct text child (./text()) of the first <p> in div.copy.
-        # Pattern A: <p><strong>metadata</strong><br/><br/>SYNOPSIS<br/><br/><strong>note</strong></p>
-        # Pattern B: <p>SYNOPSIS<br/>...<em>...</em><br/><strong>year runtime</strong></p>
-        # Using ./text() (not ::text) excludes text inside <strong>/<em>/<a> children.
-        synopsis = None
-        for p in response.css('div.copy p'):
-            text_nodes = [
-                t.strip() for t in p.xpath('./text()').getall()
-                if t.strip() and t.strip() != '\xa0'
-            ]
-            if text_nodes:
-                candidate = max(text_nodes, key=len)
-                if len(candidate) > 40:
-                    synopsis = candidate
-                    break
+        # Iterate direct children of div.copy; stop at the first <h3> (Trailer/Reviews heading)
+        # to prevent review paragraphs leaking into the synopsis (see Case 2: living-the-land).
+        # Use skip_meta_strong=True so <strong>/<b> blocks containing metadata (year+director,
+        # runtime, compact "YEAR N MIN." format) are stripped from the paragraph text.
+        # This handles Pattern B pages where metadata and synopsis share one <p>
+        # (see Case 3: days-and-nights-in-the-forest, monte-carlo-the-lubitsch-touch).
+        synopsis_parts = []
+        for el in response.css('div.copy').xpath('*'):
+            if el.root.tag == 'h3':
+                break  # Trailer / Reviews section starts here
+            if el.root.tag != 'p':
+                continue
+            full_text = _text_with_br(el, skip_meta_strong=True)
+            if not full_text or len(full_text) < 40:
+                continue
+            # Fallback: skip standalone metadata paragraphs not caught by strong-stripping
+            if re.search(r'\b\d{4}\b.*[Dd]irected\s+by|[Dd]irected\s+by.*\b\d{4}\b', full_text, re.DOTALL):
+                continue
+            if re.search(r'Approx\.\s+\d+\s*min', full_text, re.IGNORECASE):
+                continue
+            synopsis_parts.append(full_text)
+        synopsis = '\n'.join(synopsis_parts) or None
+
+        # --- Format ---
+        # div.urgent sometimes carries a banner like "NEW 4K RESTORATION".
+        # Only trust it when a known projection-format keyword is present;
+        # other banners (e.g. "PRE-RECORDED INTRODUCTION BY...") are ignored.
+        _format_kw_re = re.compile(r'\b(4K|35\s*MM|16\s*MM|DCP|DIGITAL|70\s*MM)\b', re.IGNORECASE)
+        format_val = None
+        for p_text in response.css('div.urgent p::text').getall():
+            p_text = p_text.strip().rstrip('!')
+            if _format_kw_re.search(p_text):
+                format_val = p_text.upper()
+                break
+        if format_val is None:
+            format_val = _extract_format(title_raw)
 
         # --- Poster ---
         # First image in the slideshow (ul.slides)
@@ -221,16 +292,16 @@ class FilmForumSpider(scrapy.Spider):
 
             yield {
                 'cinema': 'FILM FORUM',
-                'title': title_raw,
+                'title': _clean(title_raw),
                 'show_time': show_dt,
                 'show_day': show_dt.strftime('%A'),
                 'ticket_link': ticket_link,
                 'details_link': response.url,
                 'image_url': poster_url,
-                'director1': director,
+                'director1': _clean(director),
                 'director2': None,
                 'year': year,
                 'runtime': runtime,
-                'format': _extract_format(title_raw),
-                'synopsis': synopsis,
+                'format': _clean(format_val),
+                'synopsis': _clean(synopsis),
             }
