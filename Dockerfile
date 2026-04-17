@@ -10,6 +10,8 @@ RUN sed 's/^psycopg2==/psycopg2-binary==/' requirements.txt \
 
 # Copy application source
 COPY src/ ./src/
+COPY scrapy.cfg .
+COPY scrapers/ ./scrapers/
 
 # Run from the src directory so relative imports (database.*, bots.*) resolve
 WORKDIR /app/src
