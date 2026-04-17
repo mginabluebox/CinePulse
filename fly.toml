@@ -6,8 +6,6 @@
 app = 'cinepulse'
 primary_region = 'sjc'
 
-[build]
-
 [http_service]
   internal_port = 8080
   force_https = true
@@ -19,4 +17,3 @@ primary_region = 'sjc'
   memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 512
