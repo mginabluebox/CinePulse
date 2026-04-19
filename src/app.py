@@ -14,11 +14,11 @@ from zoneinfo import ZoneInfo
 _ET = ZoneInfo('America/New_York')
 
 
-def _et_date_range(day_offset: int, span_days: int) -> tuple[str, str]:
-    today = datetime.now(_ET).date()
-    start = today + timedelta(days=day_offset)
-    end = start + timedelta(days=span_days)
-    return start.isoformat(), end.isoformat()
+def _et_date_range(day_offset: int, span_days: int, from_now: bool = False) -> tuple[str, str]:
+    now_et = datetime.now(_ET)
+    start = now_et if (from_now and day_offset == 0) else (now_et.date() + timedelta(days=day_offset))
+    end = now_et.date() + timedelta(days=day_offset + span_days)
+    return start.strftime('%Y-%m-%d %H:%M:%S'), end.isoformat()
 
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -107,7 +107,7 @@ def build_calendar(showtimes):
 @app.route('/')
 @cache.cached(timeout=300)
 def landing():
-    start, end = _et_date_range(0, 7)
+    start, end = _et_date_range(0, 7, from_now=True)
     showtimes = get_showtimes(start_date=start, end_date=end, engine=engine)
     calendar = build_calendar(showtimes)
     last_scraped = get_last_scraped_at(engine=engine)
