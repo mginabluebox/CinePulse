@@ -173,6 +173,7 @@ if (dayTabsEl) {
 var calView = document.getElementById('calendarView');
 if (calView) {
   calView.addEventListener('click', function(e) {
+    if (e.target.closest('.cp-details-arrow')) return;
     var trigger = e.target.closest('.cp-film-banner-trigger.cp-expandable');
     if (!trigger) return;
     var banner = trigger.closest('.cp-film-banner');

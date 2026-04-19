@@ -9,6 +9,17 @@ import uuid
 from errors import LLMError, DBError, ParseError
 from collections import defaultdict
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+_ET = ZoneInfo('America/New_York')
+
+
+def _et_date_range(day_offset: int, span_days: int) -> tuple[str, str]:
+    today = datetime.now(_ET).date()
+    start = today + timedelta(days=day_offset)
+    end = start + timedelta(days=span_days)
+    return start.isoformat(), end.isoformat()
+
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 cache = Cache(config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
@@ -96,7 +107,8 @@ def build_calendar(showtimes):
 @app.route('/')
 @cache.cached(timeout=300)
 def landing():
-    showtimes = get_showtimes(interval_days=7, engine=engine)
+    start, end = _et_date_range(0, 7)
+    showtimes = get_showtimes(start_date=start, end_date=end, engine=engine)
     calendar = build_calendar(showtimes)
     last_scraped = get_last_scraped_at(engine=engine)
     return render_template('landing.html', calendar=calendar, last_scraped=last_scraped)
@@ -105,8 +117,7 @@ def landing():
 @app.route('/api/calendar_week2')
 @cache.cached(timeout=300)
 def api_calendar_week2():
-    start = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
-    end = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+    start, end = _et_date_range(7, 7)
     showtimes = get_showtimes(start_date=start, end_date=end, engine=engine)
     calendar = build_calendar(showtimes)
     tabs_html = render_template('_week_tabs.html', calendar=calendar, day_offset=7)
