@@ -175,23 +175,22 @@ class IFCCenterSpider(scrapy.Spider):
                 format_val = value.upper()
 
         # --- Synopsis ---
-        # IFC custom theme: <p> tags sit between <ul.schedule-list> and <ul.film-details>
-        # Some films include Q&A/event paragraphs in this zone (e.g. "Thursday, April 9 at 6:30:
-        # Sneak Preview + Q&A..."). Filter those out by detecting weekday+date patterns.
-        _event_re = re.compile(
-            r'^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[,\s]',
-            re.IGNORECASE,
-        )
-        paragraphs = [
-            _text_with_br(p)
-            for p in response.xpath(
-                '//ul[contains(@class,"schedule-list")]'
-                '/following-sibling::p'
-                '[following-sibling::ul[contains(@class,"film-details")]]'
+        # <p> tags sit between the last <ul.schedule-list> and <ul.film-details>.
+        # For films with no schedule-list, collect all <p> before film-details
+        # (excluding the date-time header paragraph).
+        if response.xpath('//ul[contains(@class,"schedule-list")]'):
+            para_nodes = response.xpath(
+                '//ul[contains(@class,"schedule-list")][last()]'
+                '/following-sibling::p[following-sibling::ul[contains(@class,"film-details")]]'
             )
-            if _text_with_br(p)
-        ]
-        paragraphs = [p for p in paragraphs if not _event_re.match(p)]
+        else:
+            para_nodes = response.xpath(
+                '//p['
+                'following-sibling::ul[contains(@class,"film-details")] and '
+                'not(contains(@class,"date-time"))'
+                ']'
+            )
+        paragraphs = [_text_with_br(p) for p in para_nodes if _text_with_br(p)]
         synopsis = '\n'.join(paragraphs) or None
 
         # --- Poster (prefer detail page hero) ---
@@ -202,6 +201,8 @@ class IFCCenterSpider(scrapy.Spider):
         if detail_poster:
             poster_url = response.urljoin(detail_poster)
 
+        directors = [d.strip() for d in director.split(',')] if director else []
+
         for item in partial_items:
             yield {
                 'cinema': 'IFC CENTER',
@@ -211,8 +212,8 @@ class IFCCenterSpider(scrapy.Spider):
                 'ticket_link': item['ticket_link'],
                 'details_link': response.url,
                 'image_url': poster_url,
-                'director1': _clean(director),
-                'director2': None,
+                'director1': _clean(directors[0]) if directors else None,
+                'director2': _clean(directors[1]) if len(directors) > 1 else None,
                 'year': year,
                 'runtime': runtime,
                 'format': _clean(format_val),
