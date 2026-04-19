@@ -242,7 +242,9 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
                                   showtimes_per_movie: int = 5,
                                   log_calls: bool = True,
                                   run_id: str = None,
-                                  session_token: str = None):
+                                  session_token: str = None,
+                                  start_date: str = None,
+                                  end_date: str = None):
     """Recommend movies using embedding similarity and return movie-level cards.
 
     Flow:
@@ -253,7 +255,8 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
     """
 
     # Step 1: fetch all eligible candidates (future non-sold-out showtimes + embedding)
-    candidates = get_movies_with_future_showtimes(engine=db_engine, exclude_sold_out=True)
+    candidates = get_movies_with_future_showtimes(engine=db_engine, exclude_sold_out=True,
+                                                  start_date=start_date, end_date=end_date)
     if not candidates:
         return []
 

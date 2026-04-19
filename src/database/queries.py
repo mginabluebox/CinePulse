@@ -4,18 +4,22 @@ from .models import Showtime, Movie
 from typing import Iterable, Optional, Dict, List, Any
 
 
-def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, exclude_sold_out: bool = False) -> List[Dict[str, Any]]:
+def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, exclude_sold_out: bool = False,
+                                     start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
     """Return movies that have at least one future showtime and an embedding.
 
     Movies are ordered by their earliest upcoming showtime. If limit is provided, it caps the number of rows returned.
     If exclude_sold_out is True, only movies with at least one non-sold-out future showtime are included.
+    If start_date/end_date are provided, only movies with showtimes in that range are returned.
     """
     session = get_session(engine)
     try:
         filters = [
-            Showtime.show_time >= func.now(),
+            Showtime.show_time >= (start_date if start_date is not None else func.now()),
             Movie.embedding.isnot(None),
         ]
+        if end_date is not None:
+            filters.append(Showtime.show_time < end_date)
         if exclude_sold_out:
             filters.append(Showtime.ticket_link != 'sold_out')
 

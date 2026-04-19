@@ -139,7 +139,9 @@ def api_recommend_movies():
     session_token = body.get('session_token')
     run_id = str(uuid.uuid4())
     try:
-        result = recommend_movies_by_embedding(preference, engine, run_id=run_id, session_token=session_token)
+        start, end = _et_date_range(0, 7, from_now=True)
+        result = recommend_movies_by_embedding(preference, engine, run_id=run_id, session_token=session_token,
+                                               start_date=start, end_date=end)
         return jsonify({"run_id": run_id, "results": result}), 200
     except Exception as e:
         app.logger.exception('Error in /api/recommend_movies')
