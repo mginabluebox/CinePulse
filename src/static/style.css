@@ -343,7 +343,11 @@
     border-bottom: 1px solid var(--cp-border);
     overflow: hidden;
     max-height: 500px;
-    transition: max-height 0.32s ease, opacity 0.2s ease;
+    transition: max-height 0.45s ease, opacity 0.2s ease;
+}
+
+.cp-film-banner.expanded {
+    max-height: 2000px;
 }
 
 .cp-film-banner-row {
@@ -889,6 +893,12 @@
     .cp-showtime-date-label {
         min-width: 70px;
     }
+
+    /* Week nav buttons — larger touch targets */
+    .cp-week-prev-btn,
+    .cp-week-next-btn {
+        padding: .9rem 1.1rem;
+    }
 }
 
 /* ── Bootstrap utility overrides ────────────────────────────────────────── */
@@ -1106,6 +1116,23 @@
     max-height: 0;
     opacity: 0;
     pointer-events: none;
+}
+
+.cp-day-tab--empty {
+    opacity: 0.38;
+    cursor: default;
+}
+
+.cp-day-tab--empty:hover {
+    color: inherit;
+    border-bottom-color: transparent;
+}
+
+.cp-empty-day {
+    font-size: .8rem;
+    color: var(--cp-text-muted);
+    padding: 1.5rem 0;
+    margin: 0;
 }
 
 .cp-show-more-btn {

@@ -83,15 +83,16 @@
     <div class="cp-day-tabs" role="tablist">
       <button id="weekPrevBtn" class="cp-week-prev-btn" aria-label="Show previous 7 days" style="display:none">&#8249;</button>
       {% for day in calendar %}
-      <button class="cp-day-tab {% if loop.first %}active{% endif %}"
+      <button class="cp-day-tab {% if loop.first %}active{% endif %}{% if day.empty %} cp-day-tab--empty{% endif %}"
               data-day="{{ loop.index0 }}" data-week="1" role="tab">
         {{ day.label }}
       </button>
       {% endfor %}
-      <button id="loadNextWeek" class="cp-week-next-btn" aria-label="Show next 7 days">&#8250;</button>
+      {% if total_weeks > 1 %}<button id="loadNextWeek" class="cp-week-next-btn" aria-label="Show next 7 days">&#8250;</button>{% endif %}
     </div>
 
     {% set day_offset = 0 %}
+    {% set week_num = 1 %}
     {% include '_week_panels.html' %}
 
     <div id="loadMoreWeekRow" class="cp-load-more-row"></div>
@@ -279,7 +280,8 @@ if (cinemaFilterEl) {
 
 // Week navigation
 var currentWeek = 1;
-var week2Loaded = false;
+var totalWeeks = {{ total_weeks }};
+var loadedWeeks = new Set([1]);
 
 function goToWeek(week) {
   currentWeek = week;
@@ -297,25 +299,28 @@ function goToWeek(week) {
     firstTab.classList.add('active');
     var panel = document.getElementById('day-' + firstTab.dataset.day);
     if (panel) panel.classList.add('active');
+    firstTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
   }
   var prevBtn = document.getElementById('weekPrevBtn');
   var nextBtn = document.getElementById('loadNextWeek');
-  if (prevBtn) prevBtn.style.display = (week === 1) ? 'none' : '';
-  if (nextBtn) nextBtn.style.display = (week === 2) ? 'none' : '';
+  if (prevBtn) prevBtn.style.display = (week <= 1) ? 'none' : '';
+  if (nextBtn) nextBtn.style.display = (week >= totalWeeks) ? 'none' : '';
 }
 
 var prevBtn = document.getElementById('weekPrevBtn');
 if (prevBtn) {
-  prevBtn.addEventListener('click', function() { goToWeek(1); });
+  prevBtn.addEventListener('click', function() { goToWeek(currentWeek - 1); });
 }
 
 var loadBtn = document.getElementById('loadNextWeek');
 if (loadBtn) {
   loadBtn.addEventListener('click', function() {
-    if (week2Loaded) { goToWeek(2); return; }
+    var nextWeek = currentWeek + 1;
+    if (nextWeek > totalWeeks) return;
+    if (loadedWeeks.has(nextWeek)) { goToWeek(nextWeek); return; }
     loadBtn.disabled = true;
     loadBtn.innerHTML = '…';
-    fetch('/api/calendar_week2')
+    fetch('/api/calendar_week/' + nextWeek)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.tabs) {
@@ -324,11 +329,11 @@ if (loadBtn) {
         if (data.panels) {
           document.getElementById('loadMoreWeekRow').insertAdjacentHTML('beforebegin', data.panels);
         }
-        week2Loaded = true;
+        loadedWeeks.add(nextWeek);
         loadBtn.disabled = false;
         loadBtn.innerHTML = '&#8250;';
         reapplyCinemaFilter();
-        goToWeek(2);
+        goToWeek(nextWeek);
       })
       .catch(function() {
         loadBtn.disabled = false;

@@ -4,7 +4,7 @@
     <div class="cp-film-banner-trigger{% if film.synopsis %} cp-expandable{% endif %}">
       <div class="cp-film-thumb-wrap">
         {% if film.image_url %}
-        <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy">
+        <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">
         {% endif %}
       </div>
       <div class="cp-film-info">
@@ -34,7 +34,10 @@
 
 {% for day in calendar %}
 {% set day_idx = day_offset + loop.index0 %}
-<div class="cp-day-panel {% if loop.first and day_offset == 0 %}active{% endif %}" id="day-{{ day_idx }}" data-week="{{ 1 if day_offset == 0 else 2 }}">
+<div class="cp-day-panel {% if loop.first and day_offset == 0 %}active{% endif %}" id="day-{{ day_idx }}" data-week="{{ week_num }}">
+  {% if day.empty %}
+  <p class="cp-empty-day">No screenings scheduled.</p>
+  {% else %}
   {% for period_key, period_label in [('morning','Morning'),('afternoon','Afternoon'),('evening','Evening')] %}
     {% set period_films = [] %}
     {% for film in day.films %}
@@ -69,5 +72,6 @@
     </div>
     {% endif %}
   {% endfor %}
+  {% endif %}
 </div>
 {% endfor %}

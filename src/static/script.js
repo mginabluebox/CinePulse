@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const cinemas = [...new Set((m.showtimes || []).map(s => s.cinema).filter(Boolean))];
       const detailsLink = (m.showtimes || []).map(s => s.details_link).find(Boolean) || '';
       const imgHtml = m.image_url
-        ? `<img src="${escAttr(m.image_url)}" alt="${esc(m.title)}" class="cp-film-thumb">`
+        ? `<img src="${escAttr(m.image_url)}" alt="${esc(m.title)}" class="cp-film-thumb" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">`
         : '';
       const metaParts = [];
       if (m.director) metaParts.push(esc(m.director));
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<span class="me-2 cp-swipe-badge" aria-label="Liked">${SWIPE_ICON_LIKE}</span>`
         : `<span class="me-2 cp-swipe-badge" aria-label="Disliked">${SWIPE_ICON_DISLIKE}</span>`;
       const image = m.scraped_image_url || m.image_url;
-      const imgHtml = image ? `<img src="${escAttr(image)}" alt="${esc(m.title)}" class="cp-film-thumb">` : '';
+      const imgHtml = image ? `<img src="${escAttr(image)}" alt="${esc(m.title)}" class="cp-film-thumb" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">` : '';
       const reasonHtml = m.reason ? `<p class="cp-swipe-reason"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
       const synopsisHtml = m.synopsis ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>` : '';
       const showtimeBtns2 = renderShowtimeBtns(stList);

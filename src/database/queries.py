@@ -296,6 +296,20 @@ def get_showtimes_by_ids(ids: Iterable[int], engine=None):
         session.close()
 
 
+def get_last_showtime_date(engine=None) -> Optional[str]:
+    """Return the date of the latest showtime in the database as 'YYYY-MM-DD', or None."""
+    session = get_session(engine)
+    try:
+        result = session.query(func.max(Showtime.show_time)).scalar()
+        if result is None:
+            return None
+        return result.strftime('%Y-%m-%d')
+    except Exception:
+        return None
+    finally:
+        session.close()
+
+
 def get_last_scraped_at(engine=None) -> Optional[str]:
     """Return the most recent crawled_at timestamp from showtimes as a formatted string.
 

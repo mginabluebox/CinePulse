@@ -1,3 +1,4 @@
+import math
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from flask_caching import Cache
 
 from bots.get_recommendation import recommend_movies_by_embedding, search_showtimes_by_embedding
 from bots.llm_selector import LLM_PROVIDER
-from database.queries import get_showtimes, get_last_scraped_at, check_rate_limits, insert_recommendation_feedback
+from database.queries import get_showtimes, get_last_scraped_at, get_last_showtime_date, check_rate_limits, insert_recommendation_feedback
 from database.setup_db import get_engine
 from errors import LLMError, DBError, ParseError, RateLimitError
 
@@ -23,6 +24,11 @@ def _et_date_range(day_offset: int, span_days: int, from_now: bool = False) -> t
     start = now_et if (from_now and day_offset == 0) else (now_et.date() + timedelta(days=day_offset))
     end = now_et.date() + timedelta(days=day_offset + span_days)
     return start.strftime('%Y-%m-%d %H:%M:%S'), end.isoformat()
+
+
+def _date_list(day_offset: int, span_days: int) -> list[str]:
+    base = datetime.now(_ET).date()
+    return [(base + timedelta(days=day_offset + i)).isoformat() for i in range(span_days)]
 
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -56,7 +62,7 @@ def showtime_period(mins):
     return 'evening'
 
 
-def build_calendar(showtimes):
+def build_calendar(showtimes, all_dates=None):
     cal = defaultdict(dict)
     day_labels = {}
     for row in (showtimes or []):
@@ -92,18 +98,21 @@ def build_calendar(showtimes):
         day_labels[date] = row.get('show_day', '')
 
     result = []
-    for date in sorted(cal.keys()):
+    dates_to_show = all_dates if all_dates else sorted(cal.keys())
+    for date in dates_to_show:
         dt = datetime.strptime(date, '%Y-%m-%d')
         show_day = day_labels.get(date, '')
         day_abbr = show_day[:3].capitalize() if show_day else dt.strftime('%a')
+        in_cal = date in cal
         result.append({
             'date': date,
             'label': f"{day_abbr}, {dt.strftime('%b %-d')}",
             'show_day': show_day,
+            'empty': not in_cal,
             'films': [
                 dict(f, showtimes=sorted(f['showtimes'], key=lambda s: s['_sort']))
                 for f in sorted(cal[date].values(), key=lambda f: min(s['_sort'] for s in f['showtimes']))
-            ]
+            ] if in_cal else []
         })
     return result
 
@@ -113,19 +122,29 @@ def build_calendar(showtimes):
 def landing():
     start, end = _et_date_range(0, 7, from_now=True)
     showtimes = get_showtimes(start_date=start, end_date=end, engine=engine)
-    calendar = build_calendar(showtimes)
+    calendar = build_calendar(showtimes, all_dates=_date_list(0, 7))
     last_scraped = get_last_scraped_at(engine=engine)
-    return render_template('landing.html', calendar=calendar, last_scraped=last_scraped)
+    last_showtime_date = get_last_showtime_date(engine=engine)
+    today = datetime.now(_ET).date()
+    if last_showtime_date:
+        last_offset = (datetime.fromisoformat(last_showtime_date).date() - today).days
+        total_weeks = max(1, math.ceil((last_offset + 1) / 7))
+    else:
+        total_weeks = 1
+    return render_template('landing.html', calendar=calendar, last_scraped=last_scraped, total_weeks=total_weeks)
 
 
-@app.route('/api/calendar_week2')
+@app.route('/api/calendar_week/<int:week_num>')
 @cache.cached(timeout=300)
-def api_calendar_week2():
-    start, end = _et_date_range(7, 7)
+def api_calendar_week(week_num):
+    if week_num < 2:
+        return jsonify({'error': 'invalid week'}), 400
+    day_offset = (week_num - 1) * 7
+    start, end = _et_date_range(day_offset, 7)
     showtimes = get_showtimes(start_date=start, end_date=end, engine=engine)
-    calendar = build_calendar(showtimes)
-    tabs_html = render_template('_week_tabs.html', calendar=calendar, day_offset=7)
-    panels_html = render_template('_week_panels.html', calendar=calendar, day_offset=7)
+    calendar = build_calendar(showtimes, all_dates=_date_list(day_offset, 7))
+    tabs_html = render_template('_week_tabs.html', calendar=calendar, day_offset=day_offset, week_num=week_num)
+    panels_html = render_template('_week_panels.html', calendar=calendar, day_offset=day_offset, week_num=week_num)
     return jsonify({'tabs': tabs_html, 'panels': panels_html})
 
 
