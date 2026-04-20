@@ -8,6 +8,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const moviePreferenceInput = document.getElementById('moviePreference');
   const movieCards = document.getElementById('movieCards');
   const movieSwipeSummary = document.getElementById('movieSwipeSummary');
+  if (movieSwipeSummary) {
+    movieSwipeSummary.addEventListener('click', (e) => {
+      if (e.target.closest('.cp-details-arrow')) return;
+      const trigger = e.target.closest('.cp-film-banner-trigger.cp-expandable');
+      if (!trigger) return;
+      const banner = trigger.closest('.cp-film-banner');
+      const isExpanded = banner.classList.contains('expanded');
+      movieSwipeSummary.querySelectorAll('.cp-film-banner.expanded').forEach(b => {
+        b.classList.remove('expanded');
+        b.querySelectorAll('.cp-banner-synopsis-inline').forEach(s => s.classList.remove('synopsis-visible'));
+      });
+      if (!isExpanded) {
+        banner.classList.add('expanded');
+        setTimeout(() => {
+          banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(s => s.classList.add('synopsis-visible'));
+        }, 380);
+      }
+    });
+  }
   const movieTopHeader = document.getElementById('movieTopHeader');
   const movieSwipeHint = document.getElementById('movieSwipeHint');
 
@@ -462,27 +481,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const html = rows.map((m, idx) => {
+    const html = rows.map((m) => {
       const stList = Array.isArray(m.showtimes) ? m.showtimes : [];
       const summaryCinemas = [...new Set(stList.map(s => s.cinema).filter(Boolean))];
       const summaryDetailsLink = stList.map(s => s.details_link).find(Boolean) || '';
-      const fmt = (stList[0] && stList[0].format) ? String(stList[0].format) : '';
-      const showFormat = fmt && fmt.toUpperCase() !== 'UNKNOWN' && fmt !== '-';
       const runtimeVal = m.runtime || (stList[0] && stList[0].runtime);
       const runtime = runtimeVal ? `${esc(runtimeVal)} min` : '';
-      const headingId = `swipe-heading-${idx}`;
-      const collapseId = `swipe-collapse-${idx}`;
       const likedBadge = m.liked
         ? `<span class="me-2 cp-swipe-badge" aria-label="Liked">${SWIPE_ICON_LIKE}</span>`
         : `<span class="me-2 cp-swipe-badge" aria-label="Disliked">${SWIPE_ICON_DISLIKE}</span>`;
-      const reason = m.reason ? `<p class="mb-2"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
       const image = m.scraped_image_url || m.image_url;
-      const imageHtml = image ? `
-        <div class="mb-3 text-center">
-          <img src="${escAttr(image)}" alt="${esc(m.title)} poster" class="img-fluid rounded">
-        </div>` : '';
-      const synopsis = m.synopsis ? `<p class="mb-3 text-muted">${esc(m.synopsis)}</p>` : '';
+      const imgHtml = image ? `<img src="${escAttr(image)}" alt="${esc(m.title)}" class="cp-film-thumb">` : '';
+      const reasonHtml = m.reason ? `<p class="cp-swipe-reason"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
+      const synopsisHtml = m.synopsis ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>` : '';
       const showtimeBtns2 = renderShowtimeBtns(stList);
+      const hasExpandable = !!(reasonHtml || synopsisHtml || showtimeBtns2);
 
       const metaParts2 = [];
       if (m.director) metaParts2.push(esc(m.director));
@@ -490,30 +503,25 @@ document.addEventListener('DOMContentLoaded', () => {
       if (runtime) metaParts2.push(runtime);
       const meta2 = metaParts2.join(' · ');
       return `
-        <div class="accordion-item cp-accordion-item">
-          <h2 class="accordion-header" id="${headingId}">
-            <button class="accordion-button cp-accordion-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
-              <div class="cp-accordion-header-inner">
-                <div>
-                  <span class="cp-film-title">${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}</span>
-                  <span class="cp-film-meta">${meta2}</span>
+        <div class="cp-film-banner">
+          <div class="cp-film-banner-row">
+            <div class="cp-film-banner-trigger${hasExpandable ? ' cp-expandable' : ''}">
+              <div class="cp-film-thumb-wrap">${imgHtml}</div>
+              <div class="cp-film-info">
+                <span class="cp-film-title">${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}</span>
+                <span class="cp-film-meta">${meta2}</span>
+                <div class="cp-banner-synopsis-inline">
+                  ${reasonHtml}
+                  ${synopsisHtml}
+                  <div class="cp-showtime-groups">${showtimeBtns2}</div>
                 </div>
               </div>
-            </button>
-          </h2>
-          <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headingId}" data-bs-parent="#movieSwipeSummary">
-            <div class="accordion-body cp-accordion-body">
-              ${imageHtml}
-              ${reason}
-              ${synopsis}
-              <div class="cp-showtime-groups">${showtimeBtns2}</div>
             </div>
           </div>
-        </div>
-      `;
+        </div>`;
     }).join('');
 
-    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p><div class="accordion cp-accordion" id="movieSwipeSummaryAccordion">${html}</div>`;
+    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p>${html}`;
     movieSwipeSummary.classList.remove('d-none');
     if (movieCards) movieCards.classList.add('d-none');
     if (movieTopHeader) movieTopHeader.classList.add('d-none');

@@ -11,3 +11,8 @@ class DBError(Exception):
 class ParseError(Exception):
     """Raised when parsing model output fails or returns unexpected data."""
     pass
+
+
+class RateLimitError(Exception):
+    """Raised when a per-session or global daily query limit is exceeded."""
+    pass

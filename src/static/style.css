@@ -341,6 +341,9 @@
 /* ── Film banner (calendar) ─────────────────────────────────────────────── */
 .cp-film-banner {
     border-bottom: 1px solid var(--cp-border);
+    overflow: hidden;
+    max-height: 500px;
+    transition: max-height 0.32s ease, opacity 0.2s ease;
 }
 
 .cp-film-banner-row {
@@ -1098,7 +1101,9 @@
 }
 
 .cp-hidden-film {
-    display: none;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .cp-show-more-btn {
@@ -1148,6 +1153,12 @@
 .cp-swipe-badge {
     font-size: .9em;
     vertical-align: middle;
+}
+
+.cp-swipe-reason {
+    font-size: .82rem;
+    color: var(--cp-navy);
+    margin-bottom: .5rem;
 }
 
 /* ── noRecs placeholder ─────────────────────────────────────────────────── */

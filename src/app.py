@@ -1,15 +1,19 @@
-from database.queries import get_showtimes, get_last_scraped_at
-from database.setup_db import get_engine
+import uuid
+from collections import defaultdict
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from flask import Flask, render_template, request, jsonify
 from flask_caching import Cache
 
 from bots.get_recommendation import recommend_movies_by_embedding, search_showtimes_by_embedding
-from database.queries import insert_recommendation_feedback
-import uuid
-from errors import LLMError, DBError, ParseError
-from collections import defaultdict
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from bots.llm_selector import LLM_PROVIDER
+from database.queries import get_showtimes, get_last_scraped_at, check_rate_limits, insert_recommendation_feedback
+from database.setup_db import get_engine
+from errors import LLMError, DBError, ParseError, RateLimitError
+
+DAILY_GLOBAL_LIMIT = 35
+SESSION_LIMIT = 5
 
 _ET = ZoneInfo('America/New_York')
 
@@ -138,6 +142,16 @@ def api_recommend_movies():
     preference = body.get('preference') or ''
     session_token = body.get('session_token')
     run_id = str(uuid.uuid4())
+    if LLM_PROVIDER == 'openai':
+        try:
+            check_rate_limits(session_token, DAILY_GLOBAL_LIMIT, SESSION_LIMIT, engine)
+        except RateLimitError as e:
+            if e.args[0] == 'session':
+                msg = f"You've used your {SESSION_LIMIT} recommendations for today. Come back tomorrow!"
+            else:
+                msg = "Recommendations are at capacity for today. Check back tomorrow."
+            return jsonify({'error': msg, 'rate_limited': True}), 429
+
     try:
         start, end = _et_date_range(0, 7, from_now=True)
         result = recommend_movies_by_embedding(preference, engine, run_id=run_id, session_token=session_token,

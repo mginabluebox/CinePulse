@@ -313,6 +313,27 @@ def get_last_scraped_at(engine=None) -> Optional[str]:
         session.close()
 
 
+def check_rate_limits(session_token: str, daily_global_limit: int, session_limit: int, engine=None):
+    """Raise RateLimitError if daily global or per-session limit exceeded (successful calls only)."""
+    from errors import RateLimitError
+    session = get_session(engine)
+    try:
+        global_count = session.execute(
+            text("SELECT COUNT(*) FROM recommendation_logs WHERE queried_at >= date_trunc('day', now()) AND error_code = 0")
+        ).scalar()
+        if global_count >= daily_global_limit:
+            raise RateLimitError("daily_global")
+        if session_token:
+            session_count = session.execute(
+                text("SELECT COUNT(*) FROM recommendation_logs WHERE session_token = :tok AND queried_at >= date_trunc('day', now()) AND error_code = 0"),
+                {"tok": session_token}
+            ).scalar()
+            if session_count >= session_limit:
+                raise RateLimitError("session")
+    finally:
+        session.close()
+
+
 def insert_recommendation_log(queried_at, api_name: str, model_name: str, prompt_num_token: int, prompt: str, response: str, error_code: int = 0, run_id: Optional[str] = None, session_token: Optional[str] = None, engine=None):
     """Insert a recommendation log row into recommendation_logs table.
 

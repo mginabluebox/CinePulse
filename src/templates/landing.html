@@ -17,7 +17,7 @@
     <a href="/" class="cp-logo">CinePulse</a>
     <nav class="cp-header-nav">
       <a href="#showtimeSearchForm" class="cp-nav-link active">Search</a>
-      <a href="/app" class="cp-nav-link">Recommend</a>
+      <a href="/app" class="cp-nav-link">Recommend (beta)</a>
     </nav>
   </div>
 </header>
@@ -200,14 +200,13 @@ if (calView) {
     if (!btn) return;
     var group = btn.closest('.cp-cinema-group');
     if (btn.dataset.expanded === 'true') {
-      // Collapse: hide films 3+ and restore button before them
       var films = Array.from(group.querySelectorAll('.cp-film-banner'));
       films.slice(2).forEach(function(f) { f.classList.add('cp-hidden-film'); });
-      if (films[2]) { group.insertBefore(btn, films[2]); }
       btn.textContent = 'Show ' + btn.dataset.count + ' more\u2026';
       btn.dataset.expanded = 'false';
+      var third = films[2];
+      if (third) { setTimeout(function() { group.insertBefore(btn, third); }, 320); }
     } else {
-      // Expand: show all hidden films and move button to end of group
       group.querySelectorAll('.cp-hidden-film').forEach(function(f) {
         f.classList.remove('cp-hidden-film');
       });
