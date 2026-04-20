@@ -1088,12 +1088,14 @@
 /* ── Cinema grouping (calendar) ─────────────────────────────────────────── */
 .cp-cinema-label {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: .6rem;
-    font-weight: 500;
-    letter-spacing: .12em;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .09em;
     text-transform: uppercase;
     color: var(--cp-text-muted);
-    margin: .85rem 0 .2rem;
+    margin: 1rem 0 .25rem;
+    padding-left: .55rem;
+    border-left: 2px solid var(--cp-border);
 }
 
 .cp-cinema-group {
