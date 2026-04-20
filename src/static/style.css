@@ -212,6 +212,7 @@
 .cp-inline-input {
     width: 200px;
     flex-shrink: 1;
+    scroll-margin-top: 72px;
 }
 
 /* ── Search results back row ─────────────────────────────────────────────── */
