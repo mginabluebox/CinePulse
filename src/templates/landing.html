@@ -31,11 +31,18 @@
     </p>
     <div class="cp-hero-cta">
       <a href="/app" class="cp-btn cp-btn-primary">Get a recommendation &rarr;</a>
+      <div class="cp-hero-alt-cta">
+        <span class="cp-hero-or">or</span>
+        <a href="#calendarSection" class="cp-hero-alt-link">
+          Browse showtimes
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        </a>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="cp-calendar-section">
+<section class="cp-calendar-section" id="calendarSection">
 
   <!-- Section header: title + inline search -->
   <div class="cp-calendar-header">
@@ -71,7 +78,7 @@
   {% endfor %}
   {% if all_cinemas|length > 1 %}
   <div class="cp-cinema-filter" id="cinemaFilter">
-    <button class="cp-cinema-filter-btn active" data-cinema="all">All cinemas</button>
+    <button class="cp-cinema-filter-btn active" data-cinema="all">All</button>
     {% for cinema in all_cinemas | sort %}
     <button class="cp-cinema-filter-btn" data-cinema="{{ cinema }}">{{ cinema }}</button>
     {% endfor %}
