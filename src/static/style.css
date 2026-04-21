@@ -202,16 +202,50 @@
     margin-bottom: 1rem;
 }
 
+.cp-search-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.cp-search-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--cp-text-muted);
+    padding: .3rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+
+.cp-search-toggle-btn:hover,
+.cp-search-toggle-btn[aria-expanded="true"] {
+    color: var(--cp-accent);
+}
+
 .cp-inline-search {
     display: flex;
     align-items: stretch;
     gap: .5rem;
     flex-wrap: nowrap;
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-width 0.3s ease, opacity 0.2s ease;
+}
+
+.cp-inline-search.open {
+    max-width: 560px;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .cp-inline-input {
-    width: 200px;
-    flex-shrink: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     scroll-margin-top: 72px;
 }
 
@@ -868,20 +902,18 @@
         max-width: 100%;
     }
 
-    /* Inline search — stack input above buttons */
-    .cp-inline-search {
+    /* Inline search — when open on mobile, break onto its own full-width row */
+    .cp-calendar-header {
         flex-wrap: wrap;
+    }
+
+    .cp-search-toggle-wrap.open {
         width: 100%;
     }
 
-    .cp-inline-input {
-        width: 100%;
-        flex: 1 1 100%;
-    }
-
-    /* Restore vertical padding on buttons now that they're on their own row */
-    .cp-inline-search .cp-btn {
-        padding: .55rem .85rem;
+    .cp-search-toggle-wrap.open .cp-inline-search.open {
+        max-width: 100%;
+        flex: 1;
     }
 
     /* Swipe card deck — shorter on small phones */

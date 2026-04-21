@@ -16,7 +16,6 @@
   <div class="cp-header-inner">
     <a href="/" class="cp-logo">CinePulse</a>
     <nav class="cp-header-nav">
-      <a href="#showtimeSearchInput" class="cp-nav-link active">Search</a>
       <a href="/app" class="cp-nav-link">Recommend</a>
     </nav>
   </div>
@@ -49,11 +48,15 @@
       </span>
       {% endif %}
     </div>
-    <form id="showtimeSearchForm" class="cp-inline-search">
-      <input type="text" class="cp-input cp-inline-input" id="showtimeSearchInput" placeholder="Search films…">
-      <button type="submit" class="cp-btn cp-btn-primary cp-btn-icon" id="showtimeSearchButton"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search</button>
-      <button type="button" class="cp-btn cp-btn-secondary" id="showtimeSearchClear">Clear</button>
-    </form>
+    <div class="cp-search-toggle-wrap">
+      <button type="button" class="cp-search-toggle-btn" id="showtimeSearchToggle" aria-label="Search films" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <form id="showtimeSearchForm" class="cp-inline-search">
+        <input type="text" class="cp-input cp-inline-input" id="showtimeSearchInput" placeholder="Search films…">
+        <button type="submit" class="cp-btn cp-btn-primary" id="showtimeSearchButton">Search</button>
+      </form>
+    </div>
   </div>
 
   <!-- Cinema filter -->
@@ -276,6 +279,32 @@ if (cinemaFilterEl) {
     applyCinemaFilter(btn.dataset.cinema);
   });
 }
+
+// Search toggle
+(function() {
+  var toggleBtn = document.getElementById('showtimeSearchToggle');
+  var searchForm = document.getElementById('showtimeSearchForm');
+  var searchWrap = toggleBtn ? toggleBtn.closest('.cp-search-toggle-wrap') : null;
+  if (!toggleBtn || !searchForm) return;
+
+  function openSearch() {
+    searchForm.classList.add('open');
+    if (searchWrap) searchWrap.classList.add('open');
+    toggleBtn.setAttribute('aria-expanded', 'true');
+    searchForm.querySelector('#showtimeSearchInput').focus();
+  }
+  function closeSearch() {
+    searchForm.classList.remove('open');
+    if (searchWrap) searchWrap.classList.remove('open');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+  window._closeSearch = closeSearch;
+  window._openSearch = openSearch;
+
+  toggleBtn.addEventListener('click', function() {
+    searchForm.classList.contains('open') ? closeSearch() : openSearch();
+  });
+})();
 
 // Week navigation
 var currentWeek = 1;

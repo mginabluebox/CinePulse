@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const showtimeSearchForm = document.getElementById('showtimeSearchForm');
   const showtimeSearchInput = document.getElementById('showtimeSearchInput');
   const showtimeSearchButton = document.getElementById('showtimeSearchButton');
-  const showtimeSearchClear = document.getElementById('showtimeSearchClear');
   const showtimeSearchBtnOrig = showtimeSearchButton ? showtimeSearchButton.innerHTML : 'Search';
   const showtimeInputPlaceholderOrig = showtimeSearchInput ? showtimeSearchInput.placeholder : 'Search films…';
 
@@ -581,7 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showtimeSearchButton.style.pointerEvents = '';
       }
     }
-    if (showtimeSearchClear) showtimeSearchClear.disabled = isLoading;
   }
 
   function resetShowtimeView() {
@@ -628,13 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showtimeSearchInput.addEventListener('focus', clearSearchInputError);
   }
 
-  if (showtimeSearchClear) {
-    showtimeSearchClear.addEventListener('click', () => {
-      if (showtimeSearchInput) showtimeSearchInput.value = '';
-      clearSearchInputError();
-      resetShowtimeView();
-    });
-  }
+
 
   if (showtimePrevPage) {
     showtimePrevPage.addEventListener('click', () => {
@@ -676,6 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (calView && searchView) { calView.style.display = ''; searchView.style.display = 'none'; }
       if (showtimeSearchInput) showtimeSearchInput.value = '';
       if (showtimeSearchError) showtimeSearchError.classList.add('d-none');
+      if (typeof window._closeSearch === 'function') window._closeSearch();
     });
   }
 
