@@ -511,9 +511,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="cp-film-title">${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}</span>
                 <span class="cp-film-meta">${meta2}</span>
                 <div class="cp-banner-synopsis-inline">
+                  <div class="cp-showtime-groups">${showtimeBtns2}</div>
                   ${reasonHtml}
                   ${synopsisHtml}
-                  <div class="cp-showtime-groups">${showtimeBtns2}</div>
                 </div>
               </div>
             </div>
@@ -521,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
     }).join('');
 
-    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Summary</p>${html}`;
+    movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Our Picks</p>${html}`;
     movieSwipeSummary.classList.remove('d-none');
     if (movieCards) movieCards.classList.add('d-none');
     if (movieTopHeader) movieTopHeader.classList.add('d-none');

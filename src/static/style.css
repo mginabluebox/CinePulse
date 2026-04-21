@@ -544,6 +544,12 @@
     vertical-align: middle;
 }
 
+.cp-banner-synopsis-inline .cp-showtime-groups {
+    border-bottom: 1px solid var(--cp-border);
+    padding-bottom: .75rem;
+    margin-bottom: .5rem;
+}
+
 /* ── Showtime date groups (used in app accordion + landing) ─────────────── */
 .cp-film-banner-row .cp-showtime-groups {
     flex-shrink: 0;

@@ -254,9 +254,12 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
     4) Fetch up to 5 upcoming showtimes for the LLM-selected movies (earliest→latest).
     """
 
-    # Step 1: fetch all eligible candidates (future non-sold-out showtimes + embedding)
+    # Step 1: fetch all eligible candidates (future non-sold-out showtimes + embedding).
+    # Do NOT pass start_date here — it's an ET string that PostgreSQL treats as UTC, causing
+    # a 4-hour offset that lets already-past shows slip through as candidates. func.now()
+    # (the default when start_date=None) matches the cutoff used in get_future_showtimes_for_movie_ids.
     candidates = get_movies_with_future_showtimes(engine=db_engine, exclude_sold_out=True,
-                                                  start_date=start_date, end_date=end_date)
+                                                  end_date=end_date)
     if not candidates:
         return []
 
@@ -299,6 +302,11 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
         meta = candidate_lookup.get(mid)
         st_list = showtime_map.get(mid, [])
         if not meta or not st_list:
+            import logging
+            logging.getLogger(__name__).warning(
+                "recommend: dropping movie_id=%s (meta=%s, showtimes=%d) — likely no future shows",
+                mid, bool(meta), len(st_list)
+            )
             continue
 
         grouped = _group_showtimes_by_cinema(st_list)
