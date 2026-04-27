@@ -12,12 +12,72 @@ sys.path.insert(0, str(ROOT))
 
 import psycopg2
 from src.database.setup_db import get_engine
+from src.database.dedup_movies import (
+    _normalize_whitespace,
+    _scraped_title_normalized,
+    _api_lookup_title,
+    _strip_display_suffix,
+)
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
 from datetime import datetime, timezone
 
 # Find .env in the root folder
 load_dotenv(find_dotenv())
+
+
+def _prepare_item(raw_title: str, cinema: str) -> dict:
+    """Compute all title normalizations applied before any DB write.
+
+    Both CinemaScraperPipeline and DryRunCollectorPipeline call this, so edits
+    here are automatically exercised by --dry-run before touching the DB.
+    """
+    title = _normalize_whitespace(raw_title)
+    clean_title = _strip_display_suffix(title)
+    return {
+        'title': title,
+        'clean_title': clean_title,
+        'dedup_key': _scraped_title_normalized(title, cinema),
+        'api_lookup': _api_lookup_title(clean_title, cinema),
+    }
+
+
+class DryRunCollectorPipeline:
+    """No-write pipeline for --dry-run. Collects items in class-level state shared
+    across all spider instances; never touches the DB.
+
+    Call DryRunCollectorPipeline.reset(n) before starting CrawlerProcess, then
+    read DryRunCollectorPipeline.items after it finishes.
+    """
+    items: list[dict] = []
+    _seen: dict[str, set] = {}
+    _limit: int = 10
+
+    @classmethod
+    def reset(cls, limit: int = 10) -> None:
+        cls.items = []
+        cls._seen = {}
+        cls._limit = limit
+
+    def process_item(self, item, spider):
+        cinema = item.get('cinema', 'UNKNOWN')
+        norm = _prepare_item(item.get('title') or '', cinema)
+        seen = DryRunCollectorPipeline._seen
+        seen.setdefault(cinema, set())
+        if norm['title'] not in seen[cinema]:
+            if len(seen[cinema]) >= DryRunCollectorPipeline._limit:
+                spider.crawler.engine.close_spider(spider, 'dry_run_limit')
+                return item  # spider closing — discard overflow items
+            seen[cinema].add(norm['title'])
+        DryRunCollectorPipeline.items.append({
+            **dict(item),
+            'title': norm['title'],
+            '_pipeline_clean_title': norm['clean_title'],
+            '_pipeline_dedup_key': norm['dedup_key'],
+            '_pipeline_api_lookup': norm['api_lookup'],
+        })
+        return item
+
 
 class CinemaScraperPipeline:
     def __init__(self, test_mode=False):
@@ -41,15 +101,18 @@ class CinemaScraperPipeline:
     def process_item(self, item, spider):
         
         try:
-            title = item.get('title')
             year = item.get('year')
             cinema = item.get('cinema') or 'UNKNOWN'
             if self.test_mode:
                 cinema = f'TEST_{cinema}'
 
-            ## Update movies table
-            # First: try UPDATE existing entry in movies table
-            spider.logger.debug(f"Pipeline: updating item {(item.get('title'))} in movies table")
+            norm = _prepare_item(item.get('title') or '', cinema)
+            title = norm['title']
+            clean_title = norm['clean_title']
+            dedup_key = norm['dedup_key']
+            api_lookup = norm['api_lookup']
+
+            spider.logger.debug(f"Pipeline: updating item {title!r} in movies table")
             self.cur.execute("""
                 UPDATE movies
                 SET
@@ -60,12 +123,13 @@ class CinemaScraperPipeline:
                     scraped_director1 = %s,
                     scraped_cinema = %s,
                     scraped_image_url = %s,
-                    scraped_details_link = %s
-                WHERE lower(trim(title)) = lower(trim(%s))
+                    scraped_details_link = %s,
+                    scraped_title_normalized = %s
+                WHERE lower(trim(title)) = %s
                   AND (year IS NOT DISTINCT FROM %s)
                 RETURNING id;
             """, (
-                title,
+                clean_title,
                 year,
                 datetime.now(timezone.utc),
                 item.get('synopsis'),
@@ -73,7 +137,8 @@ class CinemaScraperPipeline:
                 cinema,
                 item.get('image_url'),
                 item.get('details_link'),
-                title,
+                api_lookup,
+                dedup_key,
                 year,
             ))
 
@@ -81,14 +146,13 @@ class CinemaScraperPipeline:
             if row:
                 movie_id = row[0]
             else:
-                # Then: INSERT a new entry
-                spider.logger.debug(f"Pipeline: inserting item {(item.get('title'))} into movies table")
+                spider.logger.debug(f"Pipeline: inserting item {title!r} into movies table")
                 self.cur.execute("""
-                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema, scraped_image_url, scraped_details_link)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO movies (title, year, updated_at, scraped_synopsis, scraped_director1, scraped_cinema, scraped_image_url, scraped_details_link, scraped_title_normalized)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id;
                 """, (
-                    title,
+                    clean_title,
                     year,
                     datetime.now(timezone.utc),
                     item.get('synopsis'),
@@ -96,6 +160,7 @@ class CinemaScraperPipeline:
                     cinema,
                     item.get('image_url'),
                     item.get('details_link'),
+                    api_lookup,
                 ))
                 movie_id = self.cur.fetchone()[0]
     

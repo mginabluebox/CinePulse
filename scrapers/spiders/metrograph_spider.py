@@ -36,6 +36,10 @@ def _text_with_br(selector):
 class MetrographSpider(scrapy.Spider):
     name = 'metrograph'
     start_urls = ['https://metrograph.com/film/']
+    custom_settings = {
+        'DOWNLOAD_DELAY': 1,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
+    }
 
     def parse(self, response):
         for block in response.css('div.col-sm-12.homepage-in-theater-movie'):

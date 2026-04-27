@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, UniqueConstraint, Numeric, Date
+from sqlalchemy.dialects.postgresql import ARRAY
 from pgvector.sqlalchemy import Vector
 
 from .setup_db import Base
@@ -49,8 +50,35 @@ class Movie(Base):
 
     embedding = Column(Vector(1536), nullable=True)
     embedding_model = Column(String(255), nullable=True)
-    embedding_source_hash = Column(String(64), nullable=True)  # SHA256 hash of the source text used for embedding  
+    embedding_source_hash = Column(String(64), nullable=True)  # SHA256 hash of the source text used for embedding
     embedded_at = Column(DateTime, nullable=True)
+
+    # External IDs
+    imdb_id                 = Column(String(20))
+    tmdb_id                 = Column(Integer)
+    # OMDb ratings
+    imdb_rating             = Column(Numeric(3, 1))
+    imdb_votes              = Column(Integer)
+    omdb_rt_score           = Column(Integer)
+    omdb_metacritic_score   = Column(Integer)
+    # TMDb metadata
+    tmdb_original_title     = Column(String(255))
+    tmdb_genres             = Column(ARRAY(String))
+    tmdb_origin_countries   = Column(ARRAY(String))
+    tmdb_original_language  = Column(String(10))
+    tmdb_spoken_languages   = Column(ARRAY(String))
+    tmdb_tagline            = Column(Text)
+    tmdb_overview           = Column(Text)
+    tmdb_runtime            = Column(Integer)
+    tmdb_collection_name    = Column(String(255))
+    tmdb_poster_url         = Column(Text)
+    tmdb_release_date       = Column(Date)
+    # TMDb supplemental
+    tmdb_trailer_url        = Column(Text)
+    tmdb_title_zh           = Column(String(255))
+    # Enrichment bookkeeping
+    enriched_at             = Column(DateTime)
+    scraped_title_normalized = Column(Text)
 
     # __table_args__ = (
     #     UniqueConstraint('title', 'year', name='uq_movie_title_year'),
