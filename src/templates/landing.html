@@ -179,7 +179,6 @@ if (dayTabsEl) {
   });
 }
 
-// Film expand — one-way; collapsed state only resets on day/page navigation
 var calView = document.getElementById('calendarView');
 if (calView) {
   calView.addEventListener('click', function(e) {
@@ -187,13 +186,21 @@ if (calView) {
     var trigger = e.target.closest('.cp-film-banner-trigger.cp-expandable');
     if (!trigger) return;
     var banner = trigger.closest('.cp-film-banner');
-    if (banner.classList.contains('expanded')) return;
-    banner.classList.add('expanded');
-    setTimeout(function() {
-      banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
-        s.classList.add('synopsis-visible');
+    var isExpanded = banner.classList.contains('expanded');
+    calView.querySelectorAll('.cp-film-banner.expanded').forEach(function(b) {
+      b.classList.remove('expanded');
+      b.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
+        s.classList.remove('synopsis-visible');
       });
-    }, 380);
+    });
+    if (!isExpanded) {
+      banner.classList.add('expanded');
+      setTimeout(function() {
+        banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
+          s.classList.add('synopsis-visible');
+        });
+      }, 380);
+    }
   });
 
   // Show more for cinema groups (one-way: reveal and remove button)
