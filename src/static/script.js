@@ -177,6 +177,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
+  // Mirrors _week_panels.html render_film_banner macro.
+  // opts.expandableEl: non-empty string → adds cp-expandable class AND provides the HTML content.
+  function scoreItem(val, label, suffix = '') {
+    return val ? `<div class="cp-score-item"><span class="cp-score-value">${esc(String(val))}${suffix}</span><span class="cp-score-label">${label}</span></div>` : '';
+  }
+  function renderFilmBanner(film, { titleContent, timesHtml = '', extraInfoHtml = '', expandableEl = '' }) {
+    const imgHtml = film.image_url
+      ? `<img src="${escAttr(film.image_url)}" alt="${esc(film.title)}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">`
+      : '';
+    const metaParts = [];
+    if (film.director) metaParts.push(esc(film.director));
+    if (film.year) metaParts.push(esc(String(film.year)));
+    if (film.runtime) metaParts.push(`${esc(String(film.runtime))} min`);
+    const genresHtml = Array.isArray(film.tmdb_genres) && film.tmdb_genres.length
+      ? `<div class="cp-film-genres">${film.tmdb_genres.slice(0, 3).map(g => `<span class="cp-genre-tag">${esc(g)}</span>`).join('')}</div>`
+      : '';
+    const scoresHtml = (film.imdb_rating || film.omdb_rt_score || film.omdb_metacritic_score)
+      ? `<div class="cp-film-scores">${[
+          scoreItem(film.imdb_rating, 'IMDb'),
+          scoreItem(film.omdb_rt_score, 'RT', '%'),
+          scoreItem(film.omdb_metacritic_score, 'MC'),
+        ].filter(Boolean).join('')}</div>`
+      : '';
+    const expandSection = expandableEl
+      ? `<div class="cp-banner-synopsis-inline">${expandableEl}</div>`
+      : '';
+    return `
+      <div class="cp-film-banner">
+        <div class="cp-film-banner-row">
+          <div class="cp-film-banner-trigger${expandableEl ? ' cp-expandable' : ''}">
+            <div class="cp-film-thumb-wrap">${imgHtml}</div>
+            <div class="cp-film-info">
+              <span class="cp-film-title">${titleContent}</span>
+              ${genresHtml}
+              <span class="cp-film-meta">${metaParts.join(' · ')}</span>
+              ${extraInfoHtml}
+            </div>
+            ${scoresHtml}
+          </div>
+          ${timesHtml}
+          ${expandSection}
+        </div>
+      </div>`;
+  }
+
   // --- Showtime search rendering (banner style, consistent with calendar) ---
   function renderShowtimeAccordion(movies) {
     if (!showtimeAccordion) return;
@@ -187,41 +232,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (showtimeEmptyState) showtimeEmptyState.classList.add('d-none');
 
-    const html = movies.map((m, idx) => {
-      const detailId = `sr-${idx}`;
+    const html = movies.map((m) => {
       const cinemas = [...new Set((m.showtimes || []).map(s => s.cinema).filter(Boolean))];
       const detailsLink = (m.showtimes || []).map(s => s.details_link).find(Boolean) || '';
-      const imgHtml = m.image_url
-        ? `<img src="${escAttr(m.image_url)}" alt="${esc(m.title)}" class="cp-film-thumb" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">`
-        : '';
-      const metaParts = [];
-      if (m.director) metaParts.push(esc(m.director));
-      if (m.year) metaParts.push(esc(m.year));
-      if (m.runtime) metaParts.push(`${esc(m.runtime)} min`);
-      const meta = metaParts.join(' · ');
       const simHtml = typeof m.similarity === 'number'
         ? `<span class="cp-similarity">${Math.round(m.similarity * 100)}% match</span>`
         : '';
-      const timesHtml = renderShowtimeBtns(m.showtimes);
-      const hasSynopsis = !!m.synopsis;
-      const synopsisHtml = hasSynopsis
-        ? `<p class="cp-banner-synopsis-inline cp-synopsis">${esc(m.synopsis)}</p>`
+      const expandableEl = m.synopsis
+        ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>`
         : '';
-      return `
-        <div class="cp-film-banner" data-cinemas="${esc(cinemas.join(','))}">
-          <div class="cp-film-banner-row">
-            <div class="cp-film-banner-trigger${hasSynopsis ? ' cp-expandable' : ''}">
-              <div class="cp-film-thumb-wrap">${imgHtml}</div>
-              <div class="cp-film-info">
-                <span class="cp-film-title">${titleHtml(m.title, cinemas, detailsLink)}</span>
-                <span class="cp-film-meta">${meta}</span>
-                ${simHtml}
-                ${synopsisHtml}
-              </div>
-            </div>
-            <div class="cp-showtime-groups">${timesHtml}</div>
-          </div>
-        </div>`;
+      return renderFilmBanner(m, {
+        titleContent: titleHtml(m.title, cinemas, detailsLink),
+        timesHtml: `<div class="cp-showtime-groups">${renderShowtimeBtns(m.showtimes)}</div>`,
+        extraInfoHtml: simHtml,
+        expandableEl,
+      });
     }).join('');
 
     showtimeAccordion.innerHTML = html;
@@ -437,17 +462,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!movieSwipeSummary) return;
     const toTimestamp = (showdate, showtime) => {
       if (!showdate) return Number.POSITIVE_INFINITY;
-      let hh = 0, mm = 0;
-      if (showtime) {
-        const parts = String(showtime).trim().split(/[:\s]/);
-        if (parts.length >= 2) {
-          hh = parseInt(parts[0], 10) || 0;
-          mm = parseInt(parts[1], 10) || 0;
-          const ampm = (parts[2] || '').toUpperCase();
-          if (ampm === 'PM' && hh < 12) hh += 12;
-          if (ampm === 'AM' && hh === 12) hh = 0;
-        }
-      }
+      const mins = _stMins(showtime);
+      const hh = mins === 9999 ? 0 : Math.floor(mins / 60);
+      const mm = mins === 9999 ? 0 : mins % 60;
       const iso = `${showdate}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
       const ts = Date.parse(iso);
       return Number.isFinite(ts) ? ts : Number.POSITIVE_INFINITY;
@@ -485,39 +502,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const summaryCinemas = [...new Set(stList.map(s => s.cinema).filter(Boolean))];
       const summaryDetailsLink = stList.map(s => s.details_link).find(Boolean) || '';
       const runtimeVal = m.runtime || (stList[0] && stList[0].runtime);
-      const runtime = runtimeVal ? `${esc(runtimeVal)} min` : '';
       const likedBadge = m.liked
         ? `<span class="me-2 cp-swipe-badge" aria-label="Liked">${SWIPE_ICON_LIKE}</span>`
         : `<span class="me-2 cp-swipe-badge" aria-label="Disliked">${SWIPE_ICON_DISLIKE}</span>`;
-      const image = m.scraped_image_url || m.image_url;
-      const imgHtml = image ? `<img src="${escAttr(image)}" alt="${esc(m.title)}" class="cp-film-thumb" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">` : '';
-      const reasonHtml = m.reason ? `<p class="cp-swipe-reason"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
-      const synopsisHtml = m.synopsis ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>` : '';
       const showtimeBtns2 = renderShowtimeBtns(stList);
-      const hasExpandable = !!(reasonHtml || synopsisHtml || showtimeBtns2);
-
-      const metaParts2 = [];
-      if (m.director) metaParts2.push(esc(m.director));
-      if (m.year) metaParts2.push(esc(m.year));
-      if (runtime) metaParts2.push(runtime);
-      const meta2 = metaParts2.join(' · ');
-      return `
-        <div class="cp-film-banner">
-          <div class="cp-film-banner-row">
-            <div class="cp-film-banner-trigger${hasExpandable ? ' cp-expandable' : ''}">
-              <div class="cp-film-thumb-wrap">${imgHtml}</div>
-              <div class="cp-film-info">
-                <span class="cp-film-title">${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}</span>
-                <span class="cp-film-meta">${meta2}</span>
-                <div class="cp-banner-synopsis-inline">
-                  <div class="cp-showtime-groups">${showtimeBtns2}</div>
-                  ${reasonHtml}
-                  ${synopsisHtml}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>`;
+      const timesHtml = showtimeBtns2 ? `<div class="cp-showtime-groups">${showtimeBtns2}</div>` : '';
+      const reasonHtml = m.reason ? `<p class="cp-swipe-reason"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
+      const synopsisContent = m.synopsis ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>` : '';
+      const expandableEl = reasonHtml || synopsisContent ? `${reasonHtml}${synopsisContent}` : '';
+      return renderFilmBanner(
+        { ...m, image_url: m.scraped_image_url || m.image_url, runtime: runtimeVal },
+        {
+          titleContent: `${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}`,
+          timesHtml,
+          expandableEl,
+        }
+      );
     }).join('');
 
     movieSwipeSummary.innerHTML = `<p class="cp-section-title" style="margin-bottom:1rem">Our Picks</p>${html}`;

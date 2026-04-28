@@ -9,15 +9,41 @@
       </div>
       <div class="cp-film-info">
         <span class="cp-film-title">{{ film.title }}{% if film.details_link %}<a href="{{ film.details_link }}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>{% endif %}</span>
+        {% if film.tmdb_genres %}
+        <div class="cp-film-genres">
+          {% for genre in film.tmdb_genres[:3] %}
+          <span class="cp-genre-tag">{{ genre }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
         <span class="cp-film-meta">
           {% if film.director %}{{ film.director }}{% endif %}
           {% if film.year %} &middot; {{ film.year }}{% endif %}
           {% if film.runtime %} &middot; {{ film.runtime }} min{% endif %}
         </span>
-        {% if film.synopsis %}
-        <p class="cp-banner-synopsis-inline cp-synopsis">{{ film.synopsis }}</p>
+      </div>
+      {% if film.imdb_rating or film.omdb_rt_score or film.omdb_metacritic_score %}
+      <div class="cp-film-scores">
+        {% if film.imdb_rating %}
+        <div class="cp-score-item">
+          <span class="cp-score-value">{{ film.imdb_rating }}</span>
+          <span class="cp-score-label">IMDb</span>
+        </div>
+        {% endif %}
+        {% if film.omdb_rt_score %}
+        <div class="cp-score-item">
+          <span class="cp-score-value">{{ film.omdb_rt_score }}%</span>
+          <span class="cp-score-label">RT</span>
+        </div>
+        {% endif %}
+        {% if film.omdb_metacritic_score %}
+        <div class="cp-score-item">
+          <span class="cp-score-value">{{ film.omdb_metacritic_score }}</span>
+          <span class="cp-score-label">MC</span>
+        </div>
         {% endif %}
       </div>
+      {% endif %}
     </div>
     <div class="cp-film-times">
       {% for st in psts %}
@@ -28,6 +54,11 @@
         {% endif %}
       {% endfor %}
     </div>
+    {% if film.synopsis %}
+    <div class="cp-banner-synopsis-inline">
+      <p class="cp-synopsis">{{ film.synopsis }}</p>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endmacro %}
@@ -62,7 +93,7 @@
             {% endif %}
           {% endfor %}
           {% if vis.hidden %}
-            <button type="button" class="cp-show-more-btn" data-cinema="{{ cinema_group.grouper }}" data-count="{{ vis.hidden|length }}" data-expanded="false">Show {{ vis.hidden|length }} more…</button>
+            <button type="button" class="cp-show-more-btn" data-cinema="{{ cinema_group.grouper }}" data-count="{{ vis.hidden|length }}">Show {{ vis.hidden|length }} more</button>
             {% for item in vis.hidden %}
               {{ render_film_banner(item.film, item.psts, 'cp-hidden-film') }}
             {% endfor %}

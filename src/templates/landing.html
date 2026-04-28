@@ -179,7 +179,7 @@ if (dayTabsEl) {
   });
 }
 
-// Film expand — delegated so newly loaded panels work automatically
+// Film expand — one-way; collapsed state only resets on day/page navigation
 var calView = document.getElementById('calendarView');
 if (calView) {
   calView.addEventListener('click', function(e) {
@@ -187,43 +187,24 @@ if (calView) {
     var trigger = e.target.closest('.cp-film-banner-trigger.cp-expandable');
     if (!trigger) return;
     var banner = trigger.closest('.cp-film-banner');
-    var isExpanded = banner.classList.contains('expanded');
-    document.querySelectorAll('.cp-film-banner.expanded').forEach(function(b) {
-      b.classList.remove('expanded');
-      b.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
-        s.classList.remove('synopsis-visible');
+    if (banner.classList.contains('expanded')) return;
+    banner.classList.add('expanded');
+    setTimeout(function() {
+      banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
+        s.classList.add('synopsis-visible');
       });
-    });
-    if (!isExpanded) {
-      banner.classList.add('expanded');
-      setTimeout(function() {
-        banner.querySelectorAll('.cp-banner-synopsis-inline').forEach(function(s) {
-          s.classList.add('synopsis-visible');
-        });
-      }, 380);
-    }
+    }, 380);
   });
 
-  // Show more / Show less toggle for cinema groups
+  // Show more for cinema groups (one-way: reveal and remove button)
   calView.addEventListener('click', function(e) {
     var btn = e.target.closest('.cp-show-more-btn');
     if (!btn) return;
     var group = btn.closest('.cp-cinema-group');
-    if (btn.dataset.expanded === 'true') {
-      var films = Array.from(group.querySelectorAll('.cp-film-banner'));
-      films.slice(2).forEach(function(f) { f.classList.add('cp-hidden-film'); });
-      btn.textContent = 'Show ' + btn.dataset.count + ' more\u2026';
-      btn.dataset.expanded = 'false';
-      var third = films[2];
-      if (third) { setTimeout(function() { group.insertBefore(btn, third); }, 320); }
-    } else {
-      group.querySelectorAll('.cp-hidden-film').forEach(function(f) {
-        f.classList.remove('cp-hidden-film');
-      });
-      group.appendChild(btn);
-      btn.textContent = 'Show less\u2026';
-      btn.dataset.expanded = 'true';
-    }
+    group.querySelectorAll('.cp-hidden-film').forEach(function(f) {
+      f.classList.remove('cp-hidden-film');
+    });
+    btn.remove();
   });
 }
 

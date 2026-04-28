@@ -31,12 +31,22 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, e
                 Movie.scraped_director1.label('director'),
                 Movie.scraped_synopsis.label('synopsis'),
                 Movie.scraped_image_url.label('scraped_image_url'),
+                Movie.tmdb_poster_url,
+                Movie.imdb_rating,
+                Movie.omdb_rt_score,
+                Movie.omdb_metacritic_score,
+                Movie.tmdb_genres,
                 Movie.embedding,
                 func.min(Showtime.show_time).label('first_show_time'),
             )
             .join(Showtime, Showtime.movie_id == Movie.id)
             .filter(*filters)
-            .group_by(Movie.id, Movie.title, Movie.year, Movie.scraped_director1, Movie.scraped_synopsis, Movie.embedding)
+            .group_by(
+                Movie.id, Movie.title, Movie.year, Movie.scraped_director1,
+                Movie.scraped_synopsis, Movie.scraped_image_url, Movie.tmdb_poster_url,
+                Movie.imdb_rating, Movie.omdb_rt_score, Movie.omdb_metacritic_score,
+                Movie.tmdb_genres, Movie.embedding,
+            )
             .order_by(func.min(Showtime.show_time).asc())
         )
 
@@ -52,6 +62,11 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, e
                 "director": r.director,
                 "synopsis": r.synopsis,
                 "scraped_image_url": r.scraped_image_url,
+                "tmdb_poster_url": r.tmdb_poster_url,
+                "imdb_rating": r.imdb_rating,
+                "omdb_rt_score": r.omdb_rt_score,
+                "omdb_metacritic_score": r.omdb_metacritic_score,
+                "tmdb_genres": r.tmdb_genres,
                 "embedding": list(r.embedding) if r.embedding is not None else None,
                 "first_show_time": r.first_show_time,
             }
@@ -175,15 +190,15 @@ def get_showtimes(
             raise ValueError("Either both start_date and end_date or interval_days must be provided")
 
     try:
-        # TODO: add movie_id as a field to fetch
         showtimes = session.query(
             Showtime.id,
+            Showtime.movie_id,
             Showtime.title,
             func.to_char(Showtime.show_time, 'YYYY-MM-DD').label('showdate'),
             func.to_char(Showtime.show_time, 'HH12:MI AM').label('showtime'),
             Showtime.show_day,
             Showtime.ticket_link,
-            Showtime.image_url,
+            func.coalesce(Showtime.image_url, Movie.tmdb_poster_url).label('image_url'),
             Showtime.director1,
             Showtime.year,
             Showtime.runtime,
@@ -191,15 +206,19 @@ def get_showtimes(
             Showtime.synopsis,
             Showtime.cinema,
             Showtime.details_link,
-        ).filter(
+            Movie.imdb_rating,
+            Movie.omdb_rt_score,
+            Movie.omdb_metacritic_score,
+            Movie.tmdb_genres,
+        ).outerjoin(Movie, Movie.id == Showtime.movie_id).filter(
             Showtime.show_time >= start_date,
             Showtime.show_time < end_date,
         ).order_by(Showtime.show_time.asc()).all()
 
-        # Convert the result to a list of dictionaries for easier use in templates
         return [
             {
                 "id": row.id,
+                "movie_id": row.movie_id,
                 "title": row.title,
 
                 "showdate": row.showdate,
@@ -216,6 +235,11 @@ def get_showtimes(
                 "ticket_link": row.ticket_link,
                 "image_url": row.image_url,
                 "details_link": row.details_link,
+
+                "imdb_rating": row.imdb_rating,
+                "omdb_rt_score": row.omdb_rt_score,
+                "omdb_metacritic_score": row.omdb_metacritic_score,
+                "tmdb_genres": row.tmdb_genres,
             }
             for row in showtimes
         ]

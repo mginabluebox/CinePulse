@@ -79,6 +79,10 @@ def build_calendar(showtimes, all_dates=None):
                 'image_url': row.get('image_url'),
                 'cinema': cinema,
                 'details_link': row.get('details_link'),
+                'imdb_rating': row.get('imdb_rating'),
+                'omdb_rt_score': row.get('omdb_rt_score'),
+                'omdb_metacritic_score': row.get('omdb_metacritic_score'),
+                'tmdb_genres': row.get('tmdb_genres') or [],
                 'showtimes': []
             }
         if not cal[date][key].get('image_url') and row.get('image_url'):

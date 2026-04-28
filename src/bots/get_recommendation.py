@@ -148,6 +148,12 @@ def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
+def _resolve_poster(meta: Dict[str, Any], st_list: List[Dict[str, Any]]):
+    return (meta.get('scraped_image_url')
+            or next((s.get('image_url') for s in st_list if s.get('image_url')), None)
+            or meta.get('tmdb_poster_url'))
+
+
 def _group_showtimes_by_cinema(showtimes: List[Dict[str, Any]]):
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for st in showtimes:
@@ -319,7 +325,7 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
         ]
 
         similarity_score = float(meta.get('similarity', 0.0))
-        poster_url = meta.get('scraped_image_url') or next((s.get('image_url') for s in st_list if s.get('image_url')), None)
+        poster_url = _resolve_poster(meta, st_list)
         results.append({
             'id': mid,  # for swipe handling on the frontend
             'movie_id': mid,
@@ -332,6 +338,10 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
             'showtimes': st_list,
             'cinemas': cinemas_payload,
             'scraped_image_url': poster_url,
+            'imdb_rating': meta.get('imdb_rating'),
+            'omdb_rt_score': meta.get('omdb_rt_score'),
+            'omdb_metacritic_score': meta.get('omdb_metacritic_score'),
+            'tmdb_genres': meta.get('tmdb_genres'),
         })
 
     return results
@@ -398,9 +408,7 @@ def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
             if cur < top_n_per_cinema:
                 cinema_counts[cn] = cur + 1
 
-        poster_url = c.get('scraped_image_url') or next(
-            (s.get('image_url') for s in st_list if s.get('image_url')), None
-        )
+        poster_url = _resolve_poster(c, st_list)
         runtime = c.get('runtime') or (st_list[0].get('runtime') if st_list else None)
 
         results.append({
@@ -413,6 +421,10 @@ def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
             'image_url': poster_url,
             'similarity': float(c.get('similarity', 0.0)),
             'showtimes': st_list,
+            'imdb_rating': c.get('imdb_rating'),
+            'omdb_rt_score': c.get('omdb_rt_score'),
+            'omdb_metacritic_score': c.get('omdb_metacritic_score'),
+            'tmdb_genres': c.get('tmdb_genres'),
         })
 
     return results

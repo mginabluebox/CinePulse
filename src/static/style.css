@@ -430,12 +430,12 @@
     justify-content: space-between;
 }
 
-/* Left: thumbnail + info — optionally the expand trigger */
+/* Left: thumbnail + info + scores — optionally the expand trigger */
 .cp-film-banner-trigger {
     display: flex;
     align-items: flex-start;
     gap: .85rem;
-    flex: 1 1 100%;
+    flex: 1 1 0;
     min-width: 0;
     text-decoration: none;
     color: inherit;
@@ -504,6 +504,58 @@
     margin-top: .2rem;
 }
 
+.cp-film-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.3rem;
+}
+
+.cp-genre-tag {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    border: 1px solid var(--cp-border);
+    border-radius: 2px;
+    padding: 0.12rem 0.4rem;
+}
+
+.cp-film-scores {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.cp-score-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1;
+}
+
+.cp-score-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--cp-text);
+}
+
+.cp-score-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.52rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    margin-top: 0.15rem;
+}
+
 .cp-similarity {
     display: inline-block;
     font-family: 'Space Grotesk', sans-serif;
@@ -523,8 +575,9 @@
     flex: 1 1 100%;
 }
 
-/* ── Film banner synopsis (inline, shown after thumbnail expansion) ──── */
+/* ── Film banner expandable section (always below times row) ──── */
 .cp-banner-synopsis-inline {
+    flex: 1 1 100%;
     max-height: 0;
     overflow: hidden;
     opacity: 0;
@@ -614,16 +667,9 @@
     vertical-align: middle;
 }
 
-.cp-banner-synopsis-inline .cp-showtime-groups {
-    border-bottom: 1px solid var(--cp-border);
-    padding-bottom: .75rem;
-    margin-bottom: .5rem;
-}
-
-/* ── Showtime date groups (used in app accordion + landing) ─────────────── */
+/* ── Showtime date groups (used in search accordion + swipe summary) ─── */
 .cp-film-banner-row .cp-showtime-groups {
-    flex-shrink: 0;
-    max-width: 50%;
+    flex: 1 1 100%;
 }
 
 .cp-showtime-groups {
@@ -934,10 +980,6 @@
     }
 
     /* Showtime groups in accordion/app — full width */
-    .cp-film-banner-row .cp-showtime-groups {
-        max-width: 100%;
-    }
-
     /* Inline search — when open on mobile, break onto its own full-width row */
     .cp-calendar-header {
         flex-wrap: wrap;
@@ -1211,18 +1253,26 @@
 }
 
 .cp-show-more-btn {
+    display: block;
+    width: 100%;
     background: none;
     border: none;
-    padding: .25rem 0;
-    font-size: .8rem;
+    border-top: 1px solid var(--cp-border);
+    border-bottom: 1px solid var(--cp-border);
+    padding: .45rem 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    text-align: center;
     color: var(--cp-text-muted);
     cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 2px;
 }
 
 .cp-show-more-btn:hover {
-    color: var(--cp-accent);
+    color: var(--cp-text);
+    background: var(--cp-surface);
 }
 
 /* ── Details arrow (↗ on film title, visible when banner expanded) ───────── */
