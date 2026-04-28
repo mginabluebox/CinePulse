@@ -232,6 +232,30 @@ def dedup_movies(apply: bool = False, limit: int | None = None) -> None:
                 primary_obj.title = clean_title
 
             for sec in secondaries:
+                # Build the set of (show_time, cinema, format) already on the primary
+                primary_keys = {
+                    (st.show_time, st.cinema, st.format)
+                    for st in session.query(Showtime).filter(
+                        Showtime.movie_id == primary.id
+                    ).all()
+                }
+
+                # Delete secondary showtimes that would violate the unique constraint
+                conflicts = [
+                    st for st in session.query(Showtime).filter(
+                        Showtime.movie_id == sec.id
+                    ).all()
+                    if (st.show_time, st.cinema, st.format) in primary_keys
+                ]
+                for st in conflicts:
+                    session.delete(st)
+                if conflicts:
+                    session.flush()
+                    LOGGER.info(
+                        "Deleted %d conflicting showtime(s) from secondary [%d]",
+                        len(conflicts), sec.id,
+                    )
+
                 session.query(Showtime).filter(
                     Showtime.movie_id == sec.id
                 ).update({'movie_id': primary.id})

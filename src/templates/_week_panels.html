@@ -1,10 +1,29 @@
 {% macro render_film_banner(film, psts, extra_class='') %}
+{%- set imdb_cls = ('cp-rating-good' if film.imdb_rating|float >= 7 else ('cp-rating-meh' if film.imdb_rating|float >= 4 else 'cp-rating-bad')) if film.imdb_rating else '' -%}
+{%- set rt_fresh = (film.omdb_rt_score|int >= 60) if film.omdb_rt_score is not none else false -%}
+{%- set rt_cls = ('cp-rating-good' if rt_fresh else 'cp-rating-bad') if film.omdb_rt_score is not none else '' -%}
+{%- set mc_cls = ('cp-rating-good' if film.omdb_metacritic_score|int >= 61 else ('cp-rating-meh' if film.omdb_metacritic_score|int >= 40 else 'cp-rating-bad')) if film.omdb_metacritic_score else '' -%}
 <div class="cp-film-banner{{ (' ' + extra_class) if extra_class else '' }}">
   <div class="cp-film-banner-row">
     <div class="cp-film-banner-trigger{% if film.synopsis %} cp-expandable{% endif %}">
-      <div class="cp-film-thumb-wrap">
-        {% if film.image_url %}
-        <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">
+      <div class="cp-film-left">
+        <div class="cp-film-thumb-wrap">
+          {% if film.image_url %}
+          <img src="{{ film.image_url }}" alt="{{ film.title }}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">
+          {% endif %}
+        </div>
+        {% if film.imdb_rating or film.omdb_rt_score is not none or film.omdb_metacritic_score %}
+        <div class="cp-ratings-row">
+          {% if film.imdb_rating %}
+          <span class="cp-rating-chip {{ imdb_cls }}"><img src="https://upload.wikimedia.org/wikipedia/commons/3/35/IMDb_logo.svg" class="cp-rating-icon" alt="IMDb"><span>{{ film.imdb_rating }}</span></span>
+          {% endif %}
+          {% if film.omdb_rt_score is not none %}
+          <span class="cp-rating-chip {{ rt_cls }}">{% if rt_fresh %}<img src="https://upload.wikimedia.org/wikipedia/commons/5/5b/Rotten_Tomatoes.svg" class="cp-rating-icon" alt="Fresh">{% else %}<img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Rotten_Tomatoes_rotten.svg" class="cp-rating-icon" alt="Rotten">{% endif %}<span>{{ film.omdb_rt_score }}%</span></span>
+          {% endif %}
+          {% if film.omdb_metacritic_score %}
+          <span class="cp-rating-chip {{ mc_cls }}"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Metacritic_logo_Roundel.svg" class="cp-rating-icon" alt="Metacritic"><span>{{ film.omdb_metacritic_score }}</span></span>
+          {% endif %}
+        </div>
         {% endif %}
       </div>
       <div class="cp-film-info">
@@ -22,28 +41,6 @@
           {% if film.runtime %} &middot; {{ film.runtime }} min{% endif %}
         </span>
       </div>
-      {% if film.imdb_rating or film.omdb_rt_score or film.omdb_metacritic_score %}
-      <div class="cp-film-scores">
-        {% if film.imdb_rating %}
-        <div class="cp-score-item">
-          <span class="cp-score-value">{{ film.imdb_rating }}</span>
-          <span class="cp-score-label">IMDb</span>
-        </div>
-        {% endif %}
-        {% if film.omdb_rt_score %}
-        <div class="cp-score-item">
-          <span class="cp-score-value">{{ film.omdb_rt_score }}%</span>
-          <span class="cp-score-label">RT</span>
-        </div>
-        {% endif %}
-        {% if film.omdb_metacritic_score %}
-        <div class="cp-score-item">
-          <span class="cp-score-value">{{ film.omdb_metacritic_score }}</span>
-          <span class="cp-score-label">MC</span>
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
     </div>
     <div class="cp-film-times">
       {% for st in psts %}

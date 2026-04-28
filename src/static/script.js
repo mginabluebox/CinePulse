@@ -85,6 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const SWIPE_ICON_LIKE    = `<svg ${_svgAttrs} style="color:#5cb85c"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>`;
   const SWIPE_ICON_DISLIKE = `<svg ${_svgAttrs} style="color:#c42b2b"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L13 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>`;
 
+  // Rating source icons — brand logos via Wikimedia (img avoids SVG gradient ID collisions)
+  const ICON_IMDB     = `<img src="https://upload.wikimedia.org/wikipedia/commons/3/35/IMDb_logo.svg" class="cp-rating-icon" alt="IMDb">`;
+  const ICON_RT_FRESH = `<img src="https://upload.wikimedia.org/wikipedia/commons/5/5b/Rotten_Tomatoes.svg" class="cp-rating-icon" alt="Fresh">`;
+  const ICON_RT_SPLAT = `<img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Rotten_Tomatoes_rotten.svg" class="cp-rating-icon" alt="Rotten">`;
+  const ICON_MC       = `<img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Metacritic_logo_Roundel.svg" class="cp-rating-icon" alt="Metacritic">`;
+
   // Simple runtime storage for swipes
   window._swipeResults = { likes: [], dislikes: [] };
   window._swipeLog = [];
@@ -179,9 +185,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Mirrors _week_panels.html render_film_banner macro.
   // opts.expandableEl: non-empty string → adds cp-expandable class AND provides the HTML content.
-  function scoreItem(val, label, suffix = '') {
-    return val ? `<div class="cp-score-item"><span class="cp-score-value">${esc(String(val))}${suffix}</span><span class="cp-score-label">${label}</span></div>` : '';
+  function imdbColorClass(val) { const n = parseFloat(val); return n >= 7 ? 'cp-rating-good' : n >= 4 ? 'cp-rating-meh' : 'cp-rating-bad'; }
+  function rtColorClass(val)   { return parseInt(val) >= 60 ? 'cp-rating-good' : 'cp-rating-bad'; }
+  function mcColorClass(val)   { const n = parseInt(val); return n >= 61 ? 'cp-rating-good' : n >= 40 ? 'cp-rating-meh' : 'cp-rating-bad'; }
+
+  function ratingChip(val, suffix, icon, cls) {
+    if (!val && val !== 0) return '';
+    return `<span class="cp-rating-chip ${cls}">${icon}<span>${esc(String(val))}${suffix}</span></span>`;
   }
+
+  function buildRatingsRow(film) {
+    if (!film.imdb_rating && !film.omdb_rt_score && film.omdb_rt_score !== 0 && !film.omdb_metacritic_score) return '';
+    const rtIcon = parseInt(film.omdb_rt_score) >= 60 ? ICON_RT_FRESH : ICON_RT_SPLAT;
+    const chips = [
+      ratingChip(film.imdb_rating, '', ICON_IMDB, imdbColorClass(film.imdb_rating)),
+      film.omdb_rt_score != null ? ratingChip(film.omdb_rt_score, '%', rtIcon, rtColorClass(film.omdb_rt_score)) : '',
+      ratingChip(film.omdb_metacritic_score, '', ICON_MC, mcColorClass(film.omdb_metacritic_score)),
+    ].filter(Boolean).join('');
+    return chips ? `<div class="cp-ratings-row">${chips}</div>` : '';
+  }
+
   function renderFilmBanner(film, { titleContent, timesHtml = '', extraInfoHtml = '', expandableEl = '' }) {
     const imgHtml = film.image_url
       ? `<img src="${escAttr(film.image_url)}" alt="${esc(film.title)}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">`
@@ -193,13 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const genresHtml = Array.isArray(film.tmdb_genres) && film.tmdb_genres.length
       ? `<div class="cp-film-genres">${film.tmdb_genres.slice(0, 3).map(g => `<span class="cp-genre-tag">${esc(g)}</span>`).join('')}</div>`
       : '';
-    const scoresHtml = (film.imdb_rating || film.omdb_rt_score || film.omdb_metacritic_score)
-      ? `<div class="cp-film-scores">${[
-          scoreItem(film.imdb_rating, 'IMDb'),
-          scoreItem(film.omdb_rt_score, 'RT', '%'),
-          scoreItem(film.omdb_metacritic_score, 'MC'),
-        ].filter(Boolean).join('')}</div>`
-      : '';
+    const ratingsHtml = buildRatingsRow(film);
     const expandSection = expandableEl
       ? `<div class="cp-banner-synopsis-inline">${expandableEl}</div>`
       : '';
@@ -207,14 +224,16 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="cp-film-banner">
         <div class="cp-film-banner-row">
           <div class="cp-film-banner-trigger${expandableEl ? ' cp-expandable' : ''}">
-            <div class="cp-film-thumb-wrap">${imgHtml}</div>
+            <div class="cp-film-left">
+              <div class="cp-film-thumb-wrap">${imgHtml}</div>
+              ${ratingsHtml}
+            </div>
             <div class="cp-film-info">
               <span class="cp-film-title">${titleContent}</span>
               ${genresHtml}
               <span class="cp-film-meta">${metaParts.join(' · ')}</span>
               ${extraInfoHtml}
             </div>
-            ${scoresHtml}
           </div>
           ${timesHtml}
           ${expandSection}
