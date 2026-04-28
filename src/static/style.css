@@ -1255,24 +1255,22 @@
 .cp-show-more-btn {
     display: block;
     width: 100%;
-    background: none;
+    background: var(--cp-border);
     border: none;
-    border-top: 1px solid var(--cp-border);
-    border-bottom: 1px solid var(--cp-border);
     padding: .45rem 0;
     font-family: 'Space Grotesk', sans-serif;
-    font-size: .65rem;
-    font-weight: 600;
-    letter-spacing: .1em;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .12em;
     text-transform: uppercase;
     text-align: center;
     color: var(--cp-text-muted);
     cursor: pointer;
+    transition: color 150ms ease;
 }
 
 .cp-show-more-btn:hover {
-    color: var(--cp-text);
-    background: var(--cp-surface);
+    color: var(--cp-accent);
 }
 
 /* ── Details arrow (↗ on film title, visible when banner expanded) ───────── */
