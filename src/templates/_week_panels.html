@@ -27,19 +27,25 @@
         {% endif %}
       </div>
       <div class="cp-film-info">
-        <span class="cp-film-title">{{ film.title }}{% if film.details_link %}<a href="{{ film.details_link }}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>{% endif %}</span>
         {% if film.tmdb_genres %}
         <div class="cp-film-genres">
-          {% for genre in film.tmdb_genres[:3] %}
+          {% for genre in film.tmdb_genres %}
           <span class="cp-genre-tag">{{ genre }}</span>
           {% endfor %}
         </div>
         {% endif %}
+        <span class="cp-film-title">{{ film.title }}{% if film.details_link %}<a href="{{ film.details_link }}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>{% endif %}</span>
+        {%- set _norm_scraped = (film.scraped_title_normalized or film.title) | lower -%}
+        {%- set _norm_orig = film.tmdb_original_title | lower if film.tmdb_original_title else '' -%}
+        {% if _norm_orig and _norm_orig != _norm_scraped %}<span class="cp-film-original-title">{{ film.tmdb_original_title }}</span>{% endif %}
         <span class="cp-film-meta">
           {% if film.director %}{{ film.director }}{% endif %}
           {% if film.year %} &middot; {{ film.year }}{% endif %}
           {% if film.runtime %} &middot; {{ film.runtime }} min{% endif %}
         </span>
+        {% if film.tmdb_trailer_url %}
+        <a href="{{ film.tmdb_trailer_url }}" target="_blank" class="cp-trailer-btn" onclick="event.stopPropagation()">&#9654; Trailer</a>
+        {% endif %}
       </div>
     </div>
     <div class="cp-film-times">

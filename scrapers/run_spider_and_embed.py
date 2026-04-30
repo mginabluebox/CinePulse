@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     LOGGER.info("Running all cinema spiders...")
-    run_spider()
+    run_spider() 
     LOGGER.info("Spider complete. Starting embedding sync...")
     sync_embeddings(
         refresh_all=args.refresh_all,

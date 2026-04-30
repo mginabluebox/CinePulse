@@ -342,6 +342,9 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
             'omdb_rt_score': meta.get('omdb_rt_score'),
             'omdb_metacritic_score': meta.get('omdb_metacritic_score'),
             'tmdb_genres': meta.get('tmdb_genres'),
+            'tmdb_original_title': meta.get('tmdb_original_title'),
+            'scraped_title_normalized': meta.get('scraped_title_normalized'),
+            'tmdb_trailer_url': meta.get('tmdb_trailer_url'),
         })
 
     return results
@@ -425,6 +428,9 @@ def search_showtimes_by_embedding(query: str, db_engine: Engine = None,
             'omdb_rt_score': c.get('omdb_rt_score'),
             'omdb_metacritic_score': c.get('omdb_metacritic_score'),
             'tmdb_genres': c.get('tmdb_genres'),
+            'tmdb_original_title': c.get('tmdb_original_title'),
+            'scraped_title_normalized': c.get('scraped_title_normalized'),
+            'tmdb_trailer_url': c.get('tmdb_trailer_url'),
         })
 
     return results

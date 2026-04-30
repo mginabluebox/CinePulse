@@ -36,6 +36,9 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, e
                 Movie.omdb_rt_score,
                 Movie.omdb_metacritic_score,
                 Movie.tmdb_genres,
+                Movie.tmdb_original_title,
+                Movie.scraped_title_normalized,
+                Movie.tmdb_trailer_url,
                 Movie.embedding,
                 func.min(Showtime.show_time).label('first_show_time'),
             )
@@ -45,7 +48,8 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, e
                 Movie.id, Movie.title, Movie.year, Movie.scraped_director1,
                 Movie.scraped_synopsis, Movie.scraped_image_url, Movie.tmdb_poster_url,
                 Movie.imdb_rating, Movie.omdb_rt_score, Movie.omdb_metacritic_score,
-                Movie.tmdb_genres, Movie.embedding,
+                Movie.tmdb_genres, Movie.tmdb_original_title, Movie.scraped_title_normalized,
+                Movie.tmdb_trailer_url, Movie.embedding,
             )
             .order_by(func.min(Showtime.show_time).asc())
         )
@@ -67,6 +71,9 @@ def get_movies_with_future_showtimes(engine=None, limit: Optional[int] = None, e
                 "omdb_rt_score": r.omdb_rt_score,
                 "omdb_metacritic_score": r.omdb_metacritic_score,
                 "tmdb_genres": r.tmdb_genres,
+                "tmdb_original_title": r.tmdb_original_title,
+                "scraped_title_normalized": r.scraped_title_normalized,
+                "tmdb_trailer_url": r.tmdb_trailer_url,
                 "embedding": list(r.embedding) if r.embedding is not None else None,
                 "first_show_time": r.first_show_time,
             }
@@ -210,6 +217,9 @@ def get_showtimes(
             Movie.omdb_rt_score,
             Movie.omdb_metacritic_score,
             Movie.tmdb_genres,
+            Movie.tmdb_original_title,
+            Movie.scraped_title_normalized,
+            Movie.tmdb_trailer_url,
         ).outerjoin(Movie, Movie.id == Showtime.movie_id).filter(
             Showtime.show_time >= start_date,
             Showtime.show_time < end_date,
@@ -240,6 +250,9 @@ def get_showtimes(
                 "omdb_rt_score": row.omdb_rt_score,
                 "omdb_metacritic_score": row.omdb_metacritic_score,
                 "tmdb_genres": row.tmdb_genres,
+                "tmdb_original_title": row.tmdb_original_title,
+                "scraped_title_normalized": row.scraped_title_normalized,
+                "tmdb_trailer_url": row.tmdb_trailer_url,
             }
             for row in showtimes
         ]

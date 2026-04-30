@@ -22,7 +22,7 @@ else:
 OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
 DEFAULT_OPENAI_TIMEOUT = 30
-DEFAULT_OLLAMA_TIMEOUT = 30
+DEFAULT_OLLAMA_TIMEOUT = 120
 
 _TIKTOKEN_ENCODING = tiktoken.get_encoding('o200k_base')
 
@@ -84,11 +84,13 @@ def ollama_generate(prompt: str, model: str,
     """
 
     payload = {
-        "model": model, 
-        "prompt": prompt, 
-        "max_tokens": max_tokens, 
-        "temperature": temperature, 
-        "stream": False
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_predict": max_tokens,
+            "temperature": temperature,
+        },
     }
     resp = requests.post(f"{OLLAMA_BASE}/generate", json=payload, timeout=DEFAULT_OLLAMA_TIMEOUT)
     resp.raise_for_status()

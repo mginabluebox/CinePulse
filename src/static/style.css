@@ -454,7 +454,7 @@
 }
 
 .cp-film-banner.expanded .cp-film-times {
-    padding-bottom: .75rem;
+    padding-bottom: .3rem;
 }
 
 /* Left column: thumbnail + ratings beneath */
@@ -500,6 +500,16 @@
     color: var(--cp-text);
 }
 
+.cp-film-original-title {
+    display: block;
+    font-style: italic;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--cp-text-muted);
+    letter-spacing: 0;
+    margin-top: 1px;
+}
+
 .cp-film-meta {
     display: block;
     font-size: .78rem;
@@ -507,16 +517,47 @@
     margin-top: .2rem;
 }
 
+.cp-trailer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    margin-top: .35rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    border: 1px solid var(--cp-border);
+    padding: .18rem .5rem;
+    text-decoration: none;
+    line-height: 1.4;
+    transition: color .15s, border-color .15s;
+}
+
+.cp-trailer-btn:hover {
+    color: var(--cp-accent);
+    border-color: var(--cp-accent);
+}
+
 .cp-film-genres {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.3rem;
-    margin-top: 0.3rem;
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.cp-film-genres::-webkit-scrollbar {
+    display: none;
 }
 
 .cp-genre-tag {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.58rem;
+    font-size: 0.54rem;
     font-weight: 600;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -524,6 +565,8 @@
     border: 1px solid var(--cp-border);
     border-radius: 2px;
     padding: 0.12rem 0.4rem;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 /* Single-line ratings row below thumbnail */
@@ -586,7 +629,7 @@
 /* Expansion sets max-height/margin but NOT opacity — JS adds synopsis-visible after delay */
 .cp-film-banner.expanded .cp-banner-synopsis-inline {
     max-height: 2000px;
-    margin-top: .6rem;
+    margin-top: .25rem;
 }
 
 /* Synopsis fades in only after expansion animation completes */

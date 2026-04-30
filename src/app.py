@@ -83,6 +83,9 @@ def build_calendar(showtimes, all_dates=None):
                 'omdb_rt_score': row.get('omdb_rt_score'),
                 'omdb_metacritic_score': row.get('omdb_metacritic_score'),
                 'tmdb_genres': row.get('tmdb_genres') or [],
+                'tmdb_original_title': row.get('tmdb_original_title'),
+                'scraped_title_normalized': row.get('scraped_title_normalized'),
+                'tmdb_trailer_url': row.get('tmdb_trailer_url'),
                 'showtimes': []
             }
         if not cal[date][key].get('image_url') and row.get('image_url'):

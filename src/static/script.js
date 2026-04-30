@@ -111,6 +111,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const esc = (s) => String(s || '').replace(/[&<>\"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const escAttr = (s) => encodeURI(String(s || ''));
 
+  // Mirror Python _strip_display_suffix + lowercase for tmdb_original_title comparison
+  function normalizeTitle(t) {
+    if (!t) return '';
+    return t
+      .replace(/[‘’]/g, "'")
+      .replace(/\s*\(\s*open\s*captioning\s*\)\s*$/i, '')
+      .replace(/\s*\[\s*(?:35mm|16mm|70mm|dcp|digital|ov)\s*\]\s*$/i, '')
+      .replace(/\s+in\s+(?:16|35|70)mm\s*$/i, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
   // Render title with cinema suffix styled separately; detailsLink makes the cinema+arrow clickable
   function titleHtml(title, cinemas, detailsLink) {
     if (!cinemas || !cinemas.length) return esc(title);
@@ -214,9 +227,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (film.year) metaParts.push(esc(String(film.year)));
     if (film.runtime) metaParts.push(`${esc(String(film.runtime))} min`);
     const genresHtml = Array.isArray(film.tmdb_genres) && film.tmdb_genres.length
-      ? `<div class="cp-film-genres">${film.tmdb_genres.slice(0, 3).map(g => `<span class="cp-genre-tag">${esc(g)}</span>`).join('')}</div>`
+      ? `<div class="cp-film-genres">${film.tmdb_genres.map(g => `<span class="cp-genre-tag">${esc(g)}</span>`).join('')}</div>`
       : '';
     const ratingsHtml = buildRatingsRow(film);
+    const _normScraped = (film.scraped_title_normalized || film.title || '').toLowerCase();
+    const origTitleHtml = (film.tmdb_original_title && normalizeTitle(film.tmdb_original_title) !== _normScraped)
+      ? `<span class="cp-film-original-title">${esc(film.tmdb_original_title)}</span>`
+      : '';
+    const trailerHtml = film.tmdb_trailer_url
+      ? `<a href="${escAttr(film.tmdb_trailer_url)}" target="_blank" class="cp-trailer-btn" onclick="event.stopPropagation()">&#9654; Trailer</a>`
+      : '';
     const expandSection = expandableEl
       ? `<div class="cp-banner-synopsis-inline">${expandableEl}</div>`
       : '';
@@ -229,9 +249,11 @@ document.addEventListener('DOMContentLoaded', () => {
               ${ratingsHtml}
             </div>
             <div class="cp-film-info">
-              <span class="cp-film-title">${titleContent}</span>
               ${genresHtml}
+              <span class="cp-film-title">${titleContent}</span>
+              ${origTitleHtml}
               <span class="cp-film-meta">${metaParts.join(' · ')}</span>
+              ${trailerHtml}
               ${extraInfoHtml}
             </div>
           </div>
@@ -460,13 +482,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (it.director) metaParts.push(esc(it.director));
       metaParts.forEach(p => metaBits.push(p));
       const metaLine = metaBits.join(' • ');
+      const _normScrapedCard = (it.scraped_title_normalized || it.title || '').toLowerCase();
+      const cardOrigTitle = (it.tmdb_original_title && normalizeTitle(it.tmdb_original_title) !== _normScrapedCard)
+        ? `<div class="cp-film-original-title" style="margin-bottom:.25rem">${esc(it.tmdb_original_title)}</div>`
+        : '';
+      const cardTrailerHtml = it.tmdb_trailer_url
+        ? `<a href="${escAttr(it.tmdb_trailer_url)}" target="_blank" class="cp-trailer-btn" style="margin-top:.4rem;display:inline-block">&#9654; Trailer</a>`
+        : '';
       card.innerHTML = `
         <div class="swipe-feedback-overlay swipe-feedback-like">${SWIPE_ICON_LIKE}</div>
         <div class="swipe-feedback-overlay swipe-feedback-nope">${SWIPE_ICON_DISLIKE}</div>
         <div>
           ${imgHtml}
           <div class="title">${titleHtml(it.title, cinemaList)}</div>
+          ${cardOrigTitle}
           <div class="small text-muted">${metaLine}</div>
+          ${cardTrailerHtml}
           ${it.reason ? `<div class="reason"><strong>Why you might like it:</strong> ${esc(it.reason)}</div>` : ''}
           <div class="synopsis">${esc(it.synopsis || '')}</div>
         </div>
