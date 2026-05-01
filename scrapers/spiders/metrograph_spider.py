@@ -11,26 +11,20 @@ def _clean(val):
     return val.replace('\xa0', ' ').strip()
 
 
-def _text_with_br(selector):
-    """Extract text from a Scrapy selector, converting <br> tags to \\n."""
+def _para_text(selector):
+    """Extract single-line text from a <p> selector, collapsing all whitespace to spaces."""
     def _walk(node):
         parts = []
         if node.text:
             parts.append(node.text)
         for child in node:
             tag = child.tag if isinstance(child.tag, str) else ''
-            if tag.lower() == 'br':
-                parts.append('\n')
-            else:
+            if tag.lower() != 'br':
                 parts.append(_walk(child))
             if child.tail:
                 parts.append(child.tail)
         return ''.join(parts)
-    raw = _walk(selector.root)
-    raw = re.sub(r'[ \t]+', ' ', raw)
-    raw = re.sub(r' *\n *', '\n', raw)
-    raw = re.sub(r'\n{3,}', '\n\n', raw)
-    return raw.strip()
+    return re.sub(r'\s+', ' ', _walk(selector.root)).strip()
 
 
 class MetrographSpider(scrapy.Spider):
@@ -179,23 +173,10 @@ class MetrographSpider(scrapy.Spider):
         meta = response.meta
         showtimes = meta['showtimes']
 
-        # Full synopsis from detail page
-        synopsis = None
-        for selector in (
-            'div.film-synopsis p',
-            'div.synopsis p',
-            '.film-body p',
-            '.description p',
-            'div.film-info p',
-            'article p',
-        ):
-            for p in response.css(selector):
-                text = _text_with_br(p)
-                if len(text) > 60:
-                    synopsis = text
-                    break
-            if synopsis:
-                break
+        # Synopsis lives in div.movie-info; h1/h5/.showtimes don't use <p>, so p tags are synopsis only
+        movie_info = response.css('div.movie-info')
+        parts = [t for p in movie_info.css('p') if (t := _para_text(p))]
+        synopsis = '\n\n'.join(parts) or None
         for st in showtimes:
             yield {
                 'cinema': 'METROGRAPH',

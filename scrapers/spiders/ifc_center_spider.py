@@ -64,7 +64,6 @@ class IFCCenterSpider(scrapy.Spider):
         today = datetime.date.today()
         # slug -> list of partial item dicts
         slug_items: dict[str, list[dict]] = {}
-        slug_poster: dict[str, str] = {}
         slug_title: dict[str, str] = {}
 
         for day_div in response.css('div.daily-schedule'):
@@ -79,21 +78,19 @@ class IFCCenterSpider(scrapy.Spider):
                 continue
 
             for film_li in day_div.css('ul > li'):
+                
+                # get details_link
                 film_href = film_li.css('a[href*="/films/"]::attr(href)').get()
                 if not film_href:
                     continue
                 film_url = response.urljoin(film_href)
                 slug = film_href.rstrip('/').split('/')[-1]
-
+                
+                # get default title
                 title = film_li.css('div.details h3 a::text, h3 a::text').get(default='').strip()
                 if not title:
                     title = film_li.css('h3::text').get(default='').strip()
-
-                poster = film_li.css('img::attr(src)').get()
-                if poster:
-                    poster = response.urljoin(poster)
-                    slug_poster.setdefault(slug, poster)
-
+                
                 if title:
                     slug_title.setdefault(slug, title)
 
@@ -101,19 +98,13 @@ class IFCCenterSpider(scrapy.Spider):
                     time_text = time_a.css('::text').get(default='').strip()
                     ticket_href = time_a.attrib.get('href', '')
 
-                    show_dt = None
-                    for fmt in ('%I:%M %p', '%I:%M%p'):
-                        try:
-                            t = datetime.datetime.strptime(time_text, fmt)
-                            show_dt = datetime.datetime(
-                                show_date.year, show_date.month, show_date.day,
-                                t.hour, t.minute
-                            )
-                            break
-                        except ValueError:
-                            continue
-
-                    if show_dt is None:
+                    try:
+                        t = datetime.datetime.strptime(time_text, '%I:%M %p')
+                        show_dt = datetime.datetime(
+                            show_date.year, show_date.month, show_date.day,
+                            t.hour, t.minute
+                        )
+                    except ValueError:
                         self.logger.warning(
                             f"Cannot parse showtime {time_text!r} for {title!r} on {show_date}"
                         )
@@ -134,7 +125,6 @@ class IFCCenterSpider(scrapy.Spider):
                     'slug': slug,
                     'items': items,
                     'title': slug_title.get(slug, ''),
-                    'poster': slug_poster.get(slug),
                 },
             )
 
@@ -142,7 +132,6 @@ class IFCCenterSpider(scrapy.Spider):
         meta = response.meta
         partial_items: list[dict] = meta['items']
         listing_title: str = meta['title']
-        poster_url: str | None = meta['poster']
 
         # --- Title ---
         title = (
@@ -152,11 +141,11 @@ class IFCCenterSpider(scrapy.Spider):
 
         # --- Metadata from <ul><li><strong>Label</strong> Value</li></ul> ---
         director = None
-        year = None
+        year = datetime.date.today().year
         runtime = None
         format_val = 'UNKNOWN'
 
-        for li in response.css('ul li'):
+        for li in response.css('ul.film-details li'):
             label = li.css('strong::text').get('').strip()
             # Get text nodes that are direct children of <li> (outside <strong>)
             value = ' '.join(li.xpath('text()').getall()).strip()
@@ -193,13 +182,9 @@ class IFCCenterSpider(scrapy.Spider):
         paragraphs = [_text_with_br(p) for p in para_nodes if _text_with_br(p)]
         synopsis = '\n'.join(paragraphs) or None
 
-        # --- Poster (prefer detail page hero) ---
-        detail_poster = (
-            response.css('div.film-hero img::attr(src)').get()
-            or response.css('img.wp-post-image::attr(src)').get()
-        )
-        if detail_poster:
-            poster_url = response.urljoin(detail_poster)
+        # --- Poster from detail page ---
+        raw_poster = response.css('img.film-featured.wp-post-image::attr(src)').get()
+        poster_url = response.urljoin(raw_poster) if raw_poster else None
 
         directors = [d.strip() for d in director.split(',')] if director else []
 

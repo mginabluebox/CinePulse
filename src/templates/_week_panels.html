@@ -34,7 +34,7 @@
           {% endfor %}
         </div>
         {% endif %}
-        <span class="cp-film-title">{{ film.title }}{% if film.details_link %}<a href="{{ film.details_link }}" target="_blank" class="cp-details-arrow" tabindex="-1">↗</a>{% endif %}</span>
+        <span class="cp-film-title">{{ film.title }}{% if film.details_link %}<a href="{{ film.details_link }}" target="_blank" class="cp-details-arrow" tabindex="-1">&nbsp;↗</a>{% endif %}</span>
         {%- set _norm_scraped = (film.scraped_title_normalized or film.title) | lower -%}
         {%- set _norm_orig = film.tmdb_original_title | lower if film.tmdb_original_title else '' -%}
         {% if _norm_orig and _norm_orig != _norm_scraped %}<span class="cp-film-original-title">{{ film.tmdb_original_title }}</span>{% endif %}

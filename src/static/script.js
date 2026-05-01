@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cinemaText = ` @ ${esc(cinemas.join(' & '))}`;
     if (detailsLink) {
       const onclick = `event.stopPropagation();window.open('${escAttr(detailsLink)}','_blank')`;
-      return `${esc(title)}<span class="cp-title-cinema" onclick="${onclick}">${cinemaText}<span class="cp-details-arrow"> ↗</span></span>`;
+      return `${esc(title)}<span class="cp-title-cinema" onclick="${onclick}">${cinemaText}<span class="cp-details-arrow"> ↗</span></span>`;
     }
     return `${esc(title)}<span class="cp-title-cinema">${cinemaText}</span>`;
   }

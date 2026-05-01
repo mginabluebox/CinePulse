@@ -160,6 +160,27 @@ def _pick_primary(movies: List[Movie], canonical: str) -> Tuple[Movie, List[Movi
     return primary, secondaries
 
 
+# ── Enrichment field names shared between null-year merge helpers ─────────────
+
+_ENRICHMENT_FIELDS = [
+    'tmdb_id', 'imdb_id', 'imdb_rating', 'imdb_votes',
+    'omdb_rt_score', 'omdb_metacritic_score',
+    'tmdb_original_title', 'tmdb_genres', 'tmdb_origin_countries',
+    'tmdb_original_language', 'tmdb_spoken_languages', 'tmdb_tagline',
+    'tmdb_overview', 'tmdb_runtime', 'tmdb_collection_name',
+    'tmdb_poster_url', 'tmdb_release_date', 'tmdb_trailer_url',
+    'tmdb_title_zh', 'embedding', 'embedding_model',
+    'embedding_source_hash', 'enriched_at', 'embedded_at',
+]
+
+
+def _copy_enrichment(src: Movie, dst: Movie) -> None:
+    """Copy enrichment fields from src → dst where dst field is None."""
+    for field in _ENRICHMENT_FIELDS:
+        if getattr(dst, field) is None and getattr(src, field) is not None:
+            setattr(dst, field, getattr(src, field))
+
+
 # ── Main dedup logic ──────────────────────────────────────────────────────────
 
 def dedup_movies(apply: bool = False, limit: int | None = None) -> None:
@@ -178,6 +199,22 @@ def dedup_movies(apply: bool = False, limit: int | None = None) -> None:
 
     dup_groups = [(k, v) for k, v in groups.items() if len(v) > 1]
 
+    # Null-year duplicates: same canonical title, one record has year=None, another has a year
+    by_canonical: dict[str, list[Movie]] = defaultdict(list)
+    for m in movies:
+        by_canonical[_normalize_for_matching(m.title)].append(m)
+
+    null_year_pairs: List[Tuple[Movie, Movie]] = []  # (null_record, year_record)
+    for canonical, ms in by_canonical.items():
+        null_ms = [m for m in ms if m.year is None]
+        year_ms = [m for m in ms if m.year is not None]
+        if not null_ms or not year_ms:
+            continue
+        # Pick the year record with the most recent update as the keeper
+        keeper = max(year_ms, key=lambda m: (m.updated_at or m.created_at, m.id))
+        for null_m in null_ms:
+            null_year_pairs.append((null_m, keeper))
+
     # Film Forum standalone cleanups: suffix in title but no duplicate record exists
     dup_canonicals = {k[0] for k, _ in dup_groups}
     ff_cleanups: List[Movie] = []
@@ -192,8 +229,8 @@ def dedup_movies(apply: bool = False, limit: int | None = None) -> None:
         dup_groups = dup_groups[:limit]
 
     LOGGER.info(
-        'Found %d duplicate group(s) and %d Film Forum title cleanup(s)',
-        len(dup_groups), len(ff_cleanups),
+        'Found %d duplicate group(s), %d null-year pair(s), %d Film Forum title cleanup(s)',
+        len(dup_groups), len(null_year_pairs), len(ff_cleanups),
     )
     if not apply:
         LOGGER.info('DRY-RUN — no writes will occur')
@@ -269,6 +306,50 @@ def dedup_movies(apply: bool = False, limit: int | None = None) -> None:
         except Exception:
             session.rollback()
             LOGGER.exception("Failed to merge group '%s' — rolled back", canonical)
+        finally:
+            session.close()
+
+    # ── Null-year merges ───────────────────────────────────────────────────────
+    for null_m, keeper in null_year_pairs:
+        print(
+            f"\nNull-year  [{null_m.id:4d}] '{null_m.title}'  year=None  (cinema: {null_m.scraped_cinema})"
+            f"\n  → KEEP   [{keeper.id:4d}] '{keeper.title}'  year={keeper.year}  (cinema: {keeper.scraped_cinema})"
+        )
+
+        if not apply:
+            continue
+
+        session = get_session(engine)
+        try:
+            null_obj = session.get(Movie, null_m.id)
+            keep_obj = session.get(Movie, keeper.id)
+
+            _copy_enrichment(src=null_obj, dst=keep_obj)
+
+            # Resolve showtime conflicts before reassigning
+            keep_keys = {
+                (st.show_time, st.cinema, st.format)
+                for st in session.query(Showtime).filter(Showtime.movie_id == keep_obj.id).all()
+            }
+            conflicts = [
+                st for st in session.query(Showtime).filter(Showtime.movie_id == null_obj.id).all()
+                if (st.show_time, st.cinema, st.format) in keep_keys
+            ]
+            for st in conflicts:
+                session.delete(st)
+            if conflicts:
+                session.flush()
+                LOGGER.info("Deleted %d conflicting showtime(s) from null-year [%d]", len(conflicts), null_m.id)
+
+            session.query(Showtime).filter(
+                Showtime.movie_id == null_obj.id
+            ).update({'movie_id': keep_obj.id})
+            session.delete(null_obj)
+            session.commit()
+            LOGGER.info("Merged null-year [%d] → [%d] '%s'", null_m.id, keeper.id, keeper.title)
+        except Exception:
+            session.rollback()
+            LOGGER.exception("Failed to merge null-year [%d] — rolled back", null_m.id)
         finally:
             session.close()
 

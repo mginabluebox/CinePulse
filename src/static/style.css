@@ -172,47 +172,9 @@
     color: #fff;
 }
 
-/* Bootstrap btn-primary override */
-.btn-primary {
-    background-color: var(--cp-accent);
-    border-color: var(--cp-accent);
-    color: #fff;
-}
-.btn-primary:hover,
-.btn-primary:focus,
-.btn-primary:active,
-.btn-primary:first-child:active {
-    background-color: var(--cp-accent-hover);
-    border-color: var(--cp-accent-hover);
-    color: #fff;
-}
-.btn-primary:focus-visible {
-    box-shadow: 0 0 0 0.25rem rgba(196, 43, 43, 0.3);
-}
-.btn-secondary {
-    background-color: var(--cp-surface);
-    border-color: var(--cp-border);
-    color: var(--cp-text-muted);
-}
-.btn-secondary:hover,
-.btn-secondary:focus {
-    background-color: var(--cp-border);
-    border-color: var(--cp-border);
-    color: var(--cp-text);
-}
-.btn-outline-secondary {
-    border-color: var(--cp-border);
-    color: var(--cp-text-muted);
-    background-color: transparent;
-}
-.btn-outline-secondary:hover {
-    background-color: var(--cp-border);
-    border-color: var(--cp-border);
-    color: var(--cp-text);
-}
-.btn-sm.btn-primary {
-    color: #fff;
-}
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+.d-none { display: none !important; }
+.mt-3   { margin-top: 1rem; }
 
 /* ── Calendar ───────────────────────────────────────────────────────────── */
 .cp-calendar-section {
@@ -237,8 +199,12 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    flex-wrap: wrap;
     margin-bottom: 1rem;
+}
+
+.cp-calendar-header h2 {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 .cp-search-toggle-wrap {
@@ -1312,24 +1278,21 @@
 
 /* ── Details arrow (↗ on film title, visible when banner expanded) ───────── */
 .cp-details-arrow {
-    display: inline-block;
-    margin-left: .3em;
-    font-size: .75em;
+    display: inline;
+    font-size: 0;
+    margin-left: 0;
     color: var(--cp-text-muted);
     text-decoration: none;
     cursor: pointer;
     opacity: 0;
-    transition: opacity .2s, color .15s;
+    transition: opacity .2s, color .15s, font-size .2s, margin-left .2s;
     pointer-events: none;
 }
 
-.cp-film-banner.expanded .cp-details-arrow {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* Swipe summary: arrow visible when accordion item is open */
+.cp-film-banner.expanded .cp-details-arrow,
 #movieSwipeSummary .accordion-button:not(.collapsed) .cp-details-arrow {
+    font-size: .75em;
+    margin-left: .3em;
     opacity: 1;
     pointer-events: auto;
 }
