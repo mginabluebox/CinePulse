@@ -393,6 +393,7 @@
 .cp-film-banner-row {
     display: flex;
     align-items: flex-start;
+    align-content: flex-start;
     gap: 1rem;
     padding: .75rem 0;
     flex-wrap: wrap;
@@ -419,7 +420,7 @@
     color: var(--cp-accent);
 }
 
-.cp-film-banner.expanded .cp-film-times {
+.cp-film-banner.expanded .cp-film-banner-row > .cp-film-times {
     padding-bottom: .3rem;
 }
 
@@ -632,6 +633,12 @@
     position: relative;
 }
 
+.cp-time-btn.sold-out > span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .cp-time-btn.sold-out:hover > * {
     visibility: hidden;
 }
@@ -651,6 +658,18 @@
 
 .cp-time-btn.sold-out:hover::after {
     opacity: 1;
+}
+
+.cp-fmt-tag {
+    display: block;
+    font-size: .48rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    opacity: .65;
+    line-height: 1;
+    margin-bottom: .15rem;
+    color: inherit;
 }
 
 .cp-cinema-name {

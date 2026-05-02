@@ -11,27 +11,8 @@ def _clean(val):
     return val.replace('\xa0', ' ').strip()
 
 
-def _is_meta_strong(node):
-    """Return True if a <strong>/<b> lxml node contains Film Forum metadata."""
-    t = ''.join(node.itertext())
-    # Year + director line (standard metadata paragraph)
-    if re.search(r'\b\d{4}\b', t) and re.search(r'[Dd]irected\s+by', t):
-        return True
-    # Standalone "Approx. N min" line
-    if re.search(r'Approx\.\s+\d+\s*min', t, re.IGNORECASE):
-        return True
-    return False
-
-
-def _text_with_br(selector, skip_meta_strong=False):
-    """Extract text from a Scrapy selector, converting <br> tags to \\n.
-
-    If skip_meta_strong=True, <strong>/<b> blocks that contain Film Forum
-    metadata (year+director or Approx. runtime) are omitted from the output
-    while their surrounding text (tails) is preserved. This lets synopsis prose
-    be recovered from Pattern B pages where metadata and synopsis share a
-    single <p> element.
-    """
+def _text_with_br(selector):
+    """Extract text from a Scrapy selector, converting <br> tags to \\n."""
     def _walk(node):
         parts = []
         if node.text:
@@ -40,8 +21,6 @@ def _text_with_br(selector, skip_meta_strong=False):
             tag = child.tag if isinstance(child.tag, str) else ''
             if tag.lower() == 'br':
                 parts.append('\n')
-            elif skip_meta_strong and tag.lower() in ('strong', 'b') and _is_meta_strong(child):
-                pass  # drop the metadata block; tail is still appended below
             else:
                 parts.append(_walk(child))
             if child.tail:
@@ -55,12 +34,15 @@ def _text_with_br(selector, skip_meta_strong=False):
 
 
 def _extract_format(title: str) -> str:
-    """Pull parenthetical format tag from title, e.g. '(35mm)' -> '35MM'."""
+    """Pull format tag from title — parenthetical '(35mm)' or bare 'in 35mm'."""
     m = re.search(r'\(([^)]+)\)', title)
     if m:
         candidate = m.group(1).strip()
         if re.search(r'mm|dcp|digital|4k|imax|70|35|16', candidate, re.IGNORECASE):
             return candidate.upper()
+    m = re.search(r'\bin\s+((?:35|16|70)\s*mm|dcp|digital|4k|imax)\b', title, re.IGNORECASE)
+    if m:
+        return m.group(1).strip().upper()
     return 'UNKNOWN'
 
 
@@ -117,36 +99,25 @@ class FilmForumSpider(scrapy.Spider):
             self.logger.warning("No tab navigation found on Film Forum listing page")
             return
 
-        # slug -> [(date, time_str)]
-        slug_showtimes: dict[str, list[tuple[datetime.date, str]]] = {}
+        # detail_url -> [(date, time_str)]
+        url_showtimes: dict[str, list[tuple[datetime.date, str]]] = {}
 
         for day_cls, tab_id in tab_day_to_id.items():
             panel = response.xpath(f'//div[@id="{tab_id}"]')
             if not panel:
                 continue
 
-            # Day-of-month from HTML comment: <!-- 19 -->
-            panel_html = panel.get()
-            comment_match = re.search(r'<!--\s*(\d{1,2})\s*-->', panel_html or '')
-            if not comment_match:
-                continue
-            day_of_month = int(comment_match.group(1))
-
-            candidate_date = today.replace(day=day_of_month)
-            if (today - candidate_date).days > 7:
-                if candidate_date.month == 12:
-                    candidate_date = candidate_date.replace(year=candidate_date.year + 1, month=1)
-                else:
-                    candidate_date = candidate_date.replace(month=candidate_date.month + 1)
+            tab_index = int(tab_id.split('-')[-1])
+            candidate_date = today + datetime.timedelta(days=tab_index)
 
             # Each <p> in the panel is one film's showtime block:
-            # <p><strong><a href="/film/slug">TITLE</a></strong><br/>
+            # <p><strong><a href="https://filmforum.org/film/bellissima">TITLE</a></strong><br/>
             #    <span>12:30</span> <span>3:00</span></p>
             for film_p in panel.css('p'):
                 film_href = film_p.css('strong a::attr(href), a[href*="/film/"]::attr(href)').get()
                 if not film_href or '/film/' not in film_href:
                     continue
-                slug = film_href.rstrip('/').split('/')[-1]
+                detail_url = response.urljoin(film_href)
 
                 times = [
                     t.strip()
@@ -154,18 +125,17 @@ class FilmForumSpider(scrapy.Spider):
                     if re.match(r'^\d{1,2}:\d{2}$', t.strip())
                 ]
                 for ts in times:
-                    slug_showtimes.setdefault(slug, []).append((candidate_date, ts))
+                    url_showtimes.setdefault(detail_url, []).append((candidate_date, ts))
 
-        if not slug_showtimes:
+        if not url_showtimes:
             self.logger.warning("No film showtimes found on Film Forum listing page")
             return
 
-        for slug, showtimes in slug_showtimes.items():
-            detail_url = f'https://filmforum.org/film/{slug}'
+        for detail_url, showtimes in url_showtimes.items():
             yield scrapy.Request(
                 detail_url,
                 callback=self.parse_film,
-                meta={'slug': slug, 'showtimes': showtimes},
+                meta={'showtimes': showtimes},
             )
 
     def parse_film(self, response):
@@ -186,8 +156,6 @@ class FilmForumSpider(scrapy.Spider):
             t.strip() for t in response.css('h2.main-title *::text, h2.main-title::text').getall()
             if t.strip()
         )
-        if not title_raw:
-            title_raw = response.css('title::text').get('').split('|')[0].strip()
         if not title_raw:
             self.logger.warning(f"No title at {response.url}")
             return
@@ -211,7 +179,7 @@ class FilmForumSpider(scrapy.Spider):
                 if m:
                     year = m.group(1)
             if director is None:
-                m = re.match(r'[Dd]irected\s+by\s+(.+)', line)
+                m = re.match(r'(?:Written\s+(?:and|&)\s+)?[Dd]irected\s+by\s+(.+)', line, re.IGNORECASE)
                 if m:
                     director = m.group(1).strip().rstrip('.')
             if runtime is None:
@@ -222,10 +190,9 @@ class FilmForumSpider(scrapy.Spider):
                     except ValueError:
                         pass
 
-        # Fallback: "DIRECTED BY X" / "WRITTEN & DIRECTED BY X" anywhere on the page
-        # Covers Pattern B films like Two Prosecutors where it's in a plain <p> outside div.copy
+        # Fallback: "DIRECTED BY X" in div.urgent
         if director is None:
-            for text in response.css('p::text, p *::text').getall():
+            for text in response.css('div.urgent p::text').getall():
                 m = re.match(
                     r'(?:WRITTEN\s*[&and]+\s*)?DIRECTED\s+BY\s+(.+)',
                     text.strip(), re.IGNORECASE,
@@ -235,27 +202,16 @@ class FilmForumSpider(scrapy.Spider):
                     break
 
         # --- Synopsis ---
-        # Iterate direct children of div.copy; stop at the first <h3> (Trailer/Reviews heading)
-        # to prevent review paragraphs leaking into the synopsis (see Case 2: living-the-land).
-        # Use skip_meta_strong=True so <strong>/<b> blocks containing metadata (year+director,
-        # runtime, compact "YEAR N MIN." format) are stripped from the paragraph text.
-        # This handles Pattern B pages where metadata and synopsis share one <p>
-        # (see Case 3: days-and-nights-in-the-forest, monte-carlo-the-lubitsch-touch).
+        # Stop at the first <h3> (Trailer/Reviews heading) to avoid review text leaking in.
         synopsis_parts = []
         for el in response.css('div.copy').xpath('*'):
             if el.root.tag == 'h3':
-                break  # Trailer / Reviews section starts here
+                break
             if el.root.tag != 'p':
                 continue
-            full_text = _text_with_br(el, skip_meta_strong=True)
-            if not full_text or len(full_text) < 40:
-                continue
-            # Fallback: skip standalone metadata paragraphs not caught by strong-stripping
-            if re.search(r'\b\d{4}\b.*[Dd]irected\s+by|[Dd]irected\s+by.*\b\d{4}\b', full_text, re.DOTALL):
-                continue
-            if re.search(r'Approx\.\s+\d+\s*min', full_text, re.IGNORECASE):
-                continue
-            synopsis_parts.append(full_text)
+            full_text = _text_with_br(el)
+            if full_text:
+                synopsis_parts.append(full_text)
         synopsis = '\n'.join(synopsis_parts) or None
 
         # --- Format ---

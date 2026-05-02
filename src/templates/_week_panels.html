@@ -50,10 +50,12 @@
     </div>
     <div class="cp-film-times">
       {% for st in psts %}
+        {%- set _fmt_upper = (st.format or '') | upper -%}
+        {%- set _show_fmt = _fmt_upper and _fmt_upper not in ['DCP', 'DIGITAL', 'UNKNOWN', '-'] -%}
         {% if st.ticket_link == 'sold_out' %}
-          <span class="cp-time-btn sold-out"><span>{{ st.showtime }}</span></span>
+          <span class="cp-time-btn sold-out"><span>{% if _show_fmt %}<span class="cp-fmt-tag">{{ st.format }}</span>{% endif %}{{ st.showtime }}</span></span>
         {% else %}
-          <a href="{{ st.ticket_link }}" target="_blank" class="cp-time-btn">{{ st.showtime }}</a>
+          <a href="{{ st.ticket_link }}" target="_blank" class="cp-time-btn">{% if _show_fmt %}<span class="cp-fmt-tag">{{ st.format }}</span>{% endif %}{{ st.showtime }}</a>
         {% endif %}
       {% endfor %}
     </div>

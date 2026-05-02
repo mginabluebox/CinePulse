@@ -135,6 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${esc(title)}<span class="cp-title-cinema">${cinemaText}</span>`;
   }
 
+  function _fmtTag(fmt) {
+    if (!fmt) return '';
+    const u = fmt.toUpperCase();
+    if (u === 'DCP' || u === 'DIGITAL' || u === 'UNKNOWN' || u === '-') return '';
+    return `<span class="cp-fmt-tag">${esc(fmt)}</span>`;
+  }
+
   // --- Shared showtime rendering (consistent with landing page) ---
   function renderShowtimeBtns(showtimes) {
     if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
@@ -150,10 +157,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const { label, sts } = groups[date];
       sts.sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime));
     const btns = sts.map(st => {
+        const fmt = _fmtTag(st.format);
         if (st.ticket_link === 'sold_out') {
-          return `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span></span>`;
+          return `<span class="cp-time-btn sold-out"><span>${fmt}${esc(st.showtime)}</span></span>`;
         }
-        return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}</a>`;
+        return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${fmt}${esc(st.showtime)}</a>`;
       }).join('');
       return `<div class="cp-showtime-date-group"><span class="cp-showtime-date-label">${esc(label)}</span><div class="cp-film-times">${btns}</div></div>`;
     }).join('');
@@ -187,11 +195,12 @@ document.addEventListener('DOMContentLoaded', () => {
       .forEach(st => byPeriod[_stPeriod(st.showtime)].push(st));
     return [['morning','Morning'],['afternoon','Afternoon'],['evening','Evening']].map(([key, label]) => {
       if (!byPeriod[key].length) return '';
-      const btns = byPeriod[key].map(st =>
-        st.ticket_link === 'sold_out'
-          ? `<span class="cp-time-btn sold-out"><span>${esc(st.showtime)}</span></span>`
-          : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${esc(st.showtime)}</a>`
-      ).join('');
+      const btns = byPeriod[key].map(st => {
+        const fmt = _fmtTag(st.format);
+        return st.ticket_link === 'sold_out'
+          ? `<span class="cp-time-btn sold-out"><span>${fmt}${esc(st.showtime)}</span></span>`
+          : `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${fmt}${esc(st.showtime)}</a>`;
+      }).join('');
       return `<div class="cp-period-group"><span class="cp-period-label">${label}</span><div class="cp-film-times">${btns}</div></div>`;
     }).join('');
   }
