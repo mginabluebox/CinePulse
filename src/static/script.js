@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Shared showtime rendering (consistent with landing page) ---
-  function renderShowtimeBtns(showtimes) {
+  function renderShowtimeBtns(showtimes, maxDates) {
     if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
     // Group by date
     const order = [];
@@ -153,10 +153,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!groups[date]) { groups[date] = { label: st.show_day ? `${st.show_day}, ${date}` : date, sts: [] }; order.push(date); }
       groups[date].sts.push(st);
     });
-    return order.map(date => {
+    const renderGroup = date => {
       const { label, sts } = groups[date];
       sts.sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime));
-    const btns = sts.map(st => {
+      const btns = sts.map(st => {
         const fmt = _fmtTag(st.format);
         if (st.ticket_link === 'sold_out') {
           return `<span class="cp-time-btn sold-out"><span>${fmt}${esc(st.showtime)}</span></span>`;
@@ -164,7 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${fmt}${esc(st.showtime)}</a>`;
       }).join('');
       return `<div class="cp-showtime-date-group"><span class="cp-showtime-date-label">${esc(label)}</span><div class="cp-film-times">${btns}</div></div>`;
-    }).join('');
+    };
+    if (maxDates === undefined || order.length <= maxDates) {
+      return order.map(renderGroup).join('');
+    }
+    const visible = order.slice(0, maxDates).map(renderGroup).join('');
+    const overflow = order.slice(maxDates).map(renderGroup).join('');
+    return visible + `<div class="cp-showtimes-overflow">${overflow}</div>`;
   }
 
   // --- Showtime period helpers (mirrors Python logic) ---
@@ -227,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return chips ? `<div class="cp-ratings-row">${chips}</div>` : '';
   }
 
-  function renderFilmBanner(film, { titleContent, timesHtml = '', extraInfoHtml = '', expandableEl = '' }) {
+  function renderFilmBanner(film, { titleContent, timesHtml = '', extraInfoHtml = '', expandableEl = '', isExpandable }) {
     const imgHtml = film.image_url
       ? `<img src="${escAttr(film.image_url)}" alt="${esc(film.title)}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">`
       : '';
@@ -249,10 +255,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const expandSection = expandableEl
       ? `<div class="cp-banner-synopsis-inline">${expandableEl}</div>`
       : '';
+    const expandable = isExpandable !== undefined ? isExpandable : !!expandableEl;
     return `
       <div class="cp-film-banner">
         <div class="cp-film-banner-row">
-          <div class="cp-film-banner-trigger${expandableEl ? ' cp-expandable' : ''}">
+          <div class="cp-film-banner-trigger${expandable ? ' cp-expandable' : ''}">
             <div class="cp-film-left">
               <div class="cp-film-thumb-wrap">${imgHtml}</div>
               ${ratingsHtml}
@@ -291,11 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const expandableEl = m.synopsis
         ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>`
         : '';
+      const distinctDates = [...new Set((m.showtimes || []).map(s => s.showdate).filter(Boolean))];
+      const hasOverflow = distinctDates.length > 2;
       return renderFilmBanner(m, {
         titleContent: titleHtml(m.title, cinemas, detailsLink),
-        timesHtml: `<div class="cp-showtime-groups">${renderShowtimeBtns(m.showtimes)}</div>`,
+        timesHtml: `<div class="cp-showtime-groups">${renderShowtimeBtns(m.showtimes, 2)}</div>`,
         extraInfoHtml: simHtml,
         expandableEl,
+        isExpandable: hasOverflow || !!expandableEl,
       });
     }).join('');
 

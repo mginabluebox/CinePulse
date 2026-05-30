@@ -723,6 +723,16 @@
     flex-shrink: 0;
 }
 
+.cp-showtimes-overflow {
+    display: none;
+    flex-direction: column;
+    gap: .65rem;
+}
+
+.cp-film-banner.expanded .cp-showtimes-overflow {
+    display: flex;
+}
+
 .cp-no-showtimes {
     color: var(--cp-text-muted);
     margin-top: 2rem;

@@ -55,7 +55,7 @@ class MetrographSpider(scrapy.Spider):
 
             try:
                 year, runtime, format = descript[-1].split('/')
-                year, runtime, format = year.strip(), runtime.strip(), format.strip()
+                year, runtime, format = year.strip(), runtime.strip(), format.strip().upper()
             except Exception:
                 try:
                     year, runtime = descript[-1].split('/')

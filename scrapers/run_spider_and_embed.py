@@ -41,6 +41,7 @@ def run_spider() -> None:
     process.crawl('metrograph')
     process.crawl('film_forum')
     process.crawl('ifc_center')
+    process.crawl('angelika')
     process.start()
 
 
@@ -60,6 +61,7 @@ def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
     process.crawl('metrograph')
     process.crawl('film_forum')
     process.crawl('ifc_center')
+    process.crawl('angelika')
     process.start()
 
     # Group raw showtime items into movie records for readability
@@ -82,6 +84,7 @@ def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
                 'synopsis': synopsis[:300] + ('…' if len(synopsis) > 300 else ''),
                 'image_url': item.get('image_url'),
                 'details_link': item.get('details_link'),
+                'special_attributes': item.get('special_attributes'),
                 'showtimes': [],
             }
         show_time = item.get('show_time')

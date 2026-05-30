@@ -183,22 +183,26 @@ class CinemaScraperPipeline:
                 runtime,
                 format,
                 synopsis,
-                cinema
+                cinema,
+                special_attributes,
+                trailer_url
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (movie_id, show_time, cinema, format)
             DO UPDATE SET
-                crawled_at   = EXCLUDED.crawled_at,
-                title        = EXCLUDED.title,
-                year         = EXCLUDED.year,
-                show_day     = EXCLUDED.show_day,
-                ticket_link  = EXCLUDED.ticket_link,
-                details_link = EXCLUDED.details_link,
-                image_url    = EXCLUDED.image_url,
-                director1    = EXCLUDED.director1,
-                director2    = EXCLUDED.director2,
-                runtime      = EXCLUDED.runtime,
-                synopsis     = EXCLUDED.synopsis;
+                crawled_at         = EXCLUDED.crawled_at,
+                title              = EXCLUDED.title,
+                year               = EXCLUDED.year,
+                show_day           = EXCLUDED.show_day,
+                ticket_link        = EXCLUDED.ticket_link,
+                details_link       = EXCLUDED.details_link,
+                image_url          = EXCLUDED.image_url,
+                director1          = EXCLUDED.director1,
+                director2          = EXCLUDED.director2,
+                runtime            = EXCLUDED.runtime,
+                synopsis           = EXCLUDED.synopsis,
+                special_attributes = EXCLUDED.special_attributes,
+                trailer_url        = EXCLUDED.trailer_url;
             """, (
                 movie_id,
                 title,
@@ -215,6 +219,8 @@ class CinemaScraperPipeline:
                 item.get('format'),
                 item.get('synopsis'),
                 cinema,
+                item.get('special_attributes'),
+                item.get('trailer_url'),
             ))
 
             self.conn.commit()
