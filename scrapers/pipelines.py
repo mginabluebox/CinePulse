@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 import psycopg2
 from src.database.setup_db import get_engine
-from src.database.dedup_movies import (
+from src.database.title_normalization import (
     _normalize_whitespace,
     _api_lookup_title,
     _strip_display_suffix,
