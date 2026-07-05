@@ -90,10 +90,50 @@ class CinemaScraperPipeline:
         # raw_connection() returns a DB-API (psycopg2) connection so existing cursor code still works
         self.conn = engine.raw_connection()
         self.cur = self.conn.cursor()
+        # Marks the start of this crawl. Rows re-written during the run get a later
+        # crawled_at (see process_item), so anything still older than this was not
+        # touched by the current crawl and is a candidate for sweeping.
+        self.run_started_at = datetime.now(timezone.utc)
+        # Cinemas with at least one successful write this run — only these are swept,
+        # so a cinema that failed to scrape entirely never has its rows deleted.
+        self.written_cinemas: set[str] = set()
 
     def close_spider(self, spider):
-        self.cur.close()
-        self.conn.close()
+        try:
+            self._sweep_stale_showtimes(spider)
+        finally:
+            self.cur.close()
+            self.conn.close()
+
+    def _sweep_stale_showtimes(self, spider):
+        """Delete future showtimes this crawl did not re-write.
+
+        A change to any part of the ON CONFLICT key (show_time, format) or to the
+        title/year that resolves movie_id makes the upsert insert a fresh row
+        instead of updating the existing one, orphaning the stale row. Re-written
+        rows get crawled_at >= run_started_at; untouched future rows keep an older
+        crawled_at and are pruned here. Past showtimes are left as history.
+        """
+        for cinema in sorted(self.written_cinemas):
+            try:
+                self.cur.execute("""
+                    DELETE FROM showtimes
+                    WHERE cinema = %s
+                      AND crawled_at < %s
+                      AND show_time > now()
+                """, (cinema, self.run_started_at))
+                deleted = self.cur.rowcount
+                self.conn.commit()
+                if deleted:
+                    spider.logger.info(
+                        f"Swept {deleted} stale future showtime(s) for {cinema!r}"
+                    )
+            except psycopg2.Error as e:
+                spider.logger.error(f"Sweep failed for {cinema!r}: {e}")
+                try:
+                    self.conn.rollback()
+                except Exception as re:
+                    spider.logger.error(f"Sweep rollback failed: {re}")
     
     def process_item(self, item, spider):
         
@@ -220,6 +260,9 @@ class CinemaScraperPipeline:
             ))
 
             self.conn.commit()
+            # Only cinemas with a committed write are eligible for the close_spider
+            # sweep, so a failed scrape never deletes an otherwise-untouched cinema.
+            self.written_cinemas.add(cinema)
         except psycopg2.Error as e:
             # Log original DB error and rollback so subsequent commands can run
             spider.logger.error(f"DB error inserting item {(item.get('title'))}: {e}")

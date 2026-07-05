@@ -162,7 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return visible + `<div class="cp-showtimes-overflow">${overflow}</div>`;
   }
 
-  // Groups showtimes by cinema; if only one cinema, renders flat (no header).
+  // Groups showtimes by cinema, always rendering a cinema header above date/time
+  // (a blank cinema name still renders headerless to avoid an empty label).
   // Each cinema section applies the same maxDates overflow as renderShowtimeBtns.
   function renderShowtimeByCinema(showtimes, maxDates) {
     if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
@@ -173,8 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!byCinema[cinema]) { byCinema[cinema] = []; cinemaOrder.push(cinema); }
       byCinema[cinema].push(st);
     });
-    // Single cinema: render flat with no header.
-    if (cinemaOrder.length <= 1) return renderShowtimeBtns(showtimes, maxDates);
     return cinemaOrder.map(cinema => {
       const sts = byCinema[cinema];
       const detailsLink = sts.map(s => s.details_link).find(Boolean) || '';
