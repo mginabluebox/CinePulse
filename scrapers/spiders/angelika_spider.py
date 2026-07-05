@@ -1,9 +1,12 @@
 import datetime
 import re
+from zoneinfo import ZoneInfo
 
-import requests
 import scrapy
 from lxml.html import fromstring
+
+
+_ET = ZoneInfo('America/New_York')
 
 
 API_URL        = 'https://production-api.readingcinemas.com/films'
@@ -79,7 +82,7 @@ def _parse_showtime_dt(dt_str: str) -> datetime.datetime | None:
     try:
         normalized = re.sub(r'([+-]\d{2})$', r'\1:00', dt_str)
         aware = datetime.datetime.fromisoformat(normalized)
-        return aware.replace(tzinfo=None)
+        return aware.astimezone(_ET).replace(tzinfo=None)
     except (ValueError, TypeError):
         return None
 
@@ -99,7 +102,10 @@ class AngelikaSpider(scrapy.Spider):
     }
 
     def start_requests(self):
-        token = self._fetch_token()
+        yield scrapy.Request(SETTINGS_URL, callback=self.parse_token)
+
+    def parse_token(self, response):
+        token = response.json()['data']['settings']['token']
         for slug, cinema_id, cinema_name in CINEMAS:
             url = (
                 f'{API_URL}?brandId=US&countryId=6'
@@ -111,11 +117,6 @@ class AngelikaSpider(scrapy.Spider):
                 meta={'cinema': cinema_name, 'cinema_slug': slug},
                 callback=self.parse,
             )
-
-    def _fetch_token(self) -> str:
-        resp = requests.get(SETTINGS_URL, timeout=15)
-        resp.raise_for_status()
-        return resp.json()['data']['settings']['token']
 
     def parse(self, response):
         cinema      = response.meta['cinema']

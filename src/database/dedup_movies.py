@@ -113,21 +113,6 @@ def _api_lookup_title(title: str, cinema: str = '') -> str:
     return t
 
 
-def _scraped_title_normalized(title: str, cinema: str = '') -> str:
-    """Return lowercase canonical title applying cinema-specific rules.
-
-    Used by pipelines.py to route scraped items to the correct movie record.
-    Only rules confirmed for that cinema are applied.
-    """
-    t = _normalize_whitespace((title or '').strip())
-    t = _PAREN_SUFFIX.sub('', t).strip()
-    if 'METROGRAPH' in cinema.upper():
-        t = _BRACKET_SUFFIX.sub('', t).strip()
-    if 'FILM FORUM' in cinema.upper():
-        t = _FORMAT_SUFFIX.sub('', t).strip()
-    return t.lower()
-
-
 def _normalize_for_matching(title: str) -> str:
     """Apply all rules unconditionally for cross-cinema duplicate detection."""
     return _strip_display_suffix(title).lower()

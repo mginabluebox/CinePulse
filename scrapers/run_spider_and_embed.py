@@ -74,7 +74,6 @@ def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
             movies_by_cinema[cinema][title] = {
                 'title': title,
                 'pipeline_clean_title': item.get('_pipeline_clean_title'),
-                'pipeline_dedup_key': item.get('_pipeline_dedup_key'),
                 'pipeline_api_lookup': item.get('_pipeline_api_lookup'),
                 'year': item.get('year'),
                 'director1': item.get('director1'),

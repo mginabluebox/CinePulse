@@ -14,7 +14,6 @@ import psycopg2
 from src.database.setup_db import get_engine
 from src.database.dedup_movies import (
     _normalize_whitespace,
-    _scraped_title_normalized,
     _api_lookup_title,
     _strip_display_suffix,
 )
@@ -37,7 +36,6 @@ def _prepare_item(raw_title: str, cinema: str) -> dict:
     return {
         'title': title,
         'clean_title': clean_title,
-        'dedup_key': _scraped_title_normalized(title, cinema),
         'api_lookup': _api_lookup_title(clean_title, cinema),
     }
 
@@ -73,7 +71,6 @@ class DryRunCollectorPipeline:
             **dict(item),
             'title': norm['title'],
             '_pipeline_clean_title': norm['clean_title'],
-            '_pipeline_dedup_key': norm['dedup_key'],
             '_pipeline_api_lookup': norm['api_lookup'],
         })
         return item
@@ -109,7 +106,6 @@ class CinemaScraperPipeline:
             norm = _prepare_item(item.get('title') or '', cinema)
             title = norm['title']
             clean_title = norm['clean_title']
-            dedup_key = norm['dedup_key']
             api_lookup = norm['api_lookup']
 
             spider.logger.debug(f"Pipeline: updating item {title!r} in movies table")
@@ -125,7 +121,7 @@ class CinemaScraperPipeline:
                     scraped_image_url = %s,
                     scraped_details_link = %s,
                     scraped_title_normalized = %s
-                WHERE lower(trim(title)) = %s
+                WHERE lower(trim(title)) = lower(trim(%s))
                   AND (year IS NOT DISTINCT FROM %s)
                 RETURNING id;
             """, (
@@ -138,7 +134,7 @@ class CinemaScraperPipeline:
                 item.get('image_url'),
                 item.get('details_link'),
                 api_lookup,
-                dedup_key,
+                clean_title,
                 year,
             ))
 
