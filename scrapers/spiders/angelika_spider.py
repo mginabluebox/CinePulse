@@ -89,6 +89,9 @@ def _parse_showtime_dt(dt_str: str) -> datetime.datetime | None:
 
 class AngelikaSpider(scrapy.Spider):
     name = 'angelika'
+    # This spider fans out to one request per cinema, so the dry-run limit must be
+    # satisfied for all three before the spider may close. See DryRunCollectorPipeline.
+    cinemas = [name for _, _, name in CINEMAS]
 
     custom_settings = {
         'DOWNLOAD_DELAY': 1,

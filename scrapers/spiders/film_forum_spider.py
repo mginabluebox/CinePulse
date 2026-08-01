@@ -58,6 +58,7 @@ def _parse_film_forum_time(time_str: str, date: datetime.date) -> datetime.datet
 
 class FilmForumSpider(scrapy.Spider):
     name = 'film_forum'
+    cinemas = ['FILM FORUM']  # every cinema this spider emits; see DryRunCollectorPipeline
     start_urls = ['https://filmforum.org/now_playing']
 
     custom_settings = {

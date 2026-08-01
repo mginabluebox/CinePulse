@@ -32,7 +32,7 @@ from src.database.sync_enrichment import sync_enrichment  # noqa: E402
 LOGGER = logging.getLogger("run_spider_and_embed")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-DRY_RUN_OUTPUT_DIR = ROOT / "tests" / "scraper"
+DRY_RUN_OUTPUT_DIR = ROOT / "data" / "scraper"
 DRY_RUN_MOVIES_PER_CINEMA = 10
 
 
@@ -48,7 +48,7 @@ def run_spider() -> None:
 def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
     """Scrape up to n_movies per cinema without writing to the DB.
 
-    Returns the path of the JSON file written to tests/scraper/.
+    Returns the path of the JSON file written to data/scraper/.
     """
     from scrapers.pipelines import DryRunCollectorPipeline
 
@@ -114,7 +114,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--refresh-enrichment", action="store_true",
                         help="Force re-enrich all movies with future showtimes, ignoring enriched_at")
     parser.add_argument("--dry-run", action="store_true",
-                        help=f"Scrape {DRY_RUN_MOVIES_PER_CINEMA} movies per cinema, no DB writes; save to tests/scraper/")
+                        help=f"Scrape {DRY_RUN_MOVIES_PER_CINEMA} movies per cinema, no DB writes; save to data/scraper/")
     return parser
 
 

@@ -29,6 +29,7 @@ def _para_text(selector):
 
 class MetrographSpider(scrapy.Spider):
     name = 'metrograph'
+    cinemas = ['METROGRAPH']  # every cinema this spider emits; see DryRunCollectorPipeline
     start_urls = ['https://metrograph.com/film/']
     custom_settings = {
         'DOWNLOAD_DELAY': 1,

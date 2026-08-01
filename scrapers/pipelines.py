@@ -50,23 +50,36 @@ class DryRunCollectorPipeline:
     items: list[dict] = []
     _seen: dict[str, set] = {}
     _limit: int = 10
+    _closed: set[str] = set()
 
     @classmethod
     def reset(cls, limit: int = 10) -> None:
         cls.items = []
         cls._seen = {}
         cls._limit = limit
+        cls._closed = set()
+
+    @classmethod
+    def _is_full(cls, cinema: str) -> bool:
+        return len(cls._seen.get(cinema, ())) >= cls._limit
 
     def process_item(self, item, spider):
         cinema = item.get('cinema', 'UNKNOWN')
         norm = _prepare_item(item.get('title') or '', cinema)
         seen = DryRunCollectorPipeline._seen
         seen.setdefault(cinema, set())
-        if norm['title'] not in seen[cinema]:
-            if len(seen[cinema]) >= DryRunCollectorPipeline._limit:
-                spider.crawler.engine.close_spider(spider, 'dry_run_limit')
-                return item  # spider closing — discard overflow items
+
+        new_title = norm['title'] not in seen[cinema]
+        if new_title and DryRunCollectorPipeline._is_full(cinema):
+            # Quota reached for this cinema. A spider may serve several cinemas
+            # (Angelika fans out to one request per venue), so only close once every
+            # cinema it declares is full — otherwise the first venue to fill would
+            # cancel the others' in-flight requests and silently truncate them.
+            self._maybe_close(spider)
+            return item  # discard overflow items
+        if new_title:
             seen[cinema].add(norm['title'])
+
         DryRunCollectorPipeline.items.append({
             **dict(item),
             'title': norm['title'],
@@ -74,6 +87,18 @@ class DryRunCollectorPipeline:
             '_pipeline_api_lookup': norm['api_lookup'],
         })
         return item
+
+    def _maybe_close(self, spider) -> None:
+        if spider.name in DryRunCollectorPipeline._closed:
+            return  # already asked this spider to stop
+        # Spiders declare their venues via `cinemas`; fall back to the one in hand.
+        expected = getattr(spider, 'cinemas', None) or [
+            c for c in DryRunCollectorPipeline._seen
+        ]
+        if not all(DryRunCollectorPipeline._is_full(c) for c in expected):
+            return
+        DryRunCollectorPipeline._closed.add(spider.name)
+        spider.crawler.engine.close_spider(spider, 'dry_run_limit')
 
 
 class CinemaScraperPipeline:
