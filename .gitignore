@@ -187,3 +187,5 @@ notebooks/
 # Claude
 .claude
 CLAUDE.md
+
+docs/.obsidian/
