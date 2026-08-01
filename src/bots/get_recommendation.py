@@ -1,83 +1,15 @@
 import json
+import logging
 import math
 import re
-from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.engine import Engine
 from database.queries import (
-    get_showtimes_by_ids,
     get_movies_with_future_showtimes,
     get_future_showtimes_for_movie_ids,
 )
 from .llm_selector import call_llm, generate_embedding
-from errors import LLMError, DBError, ParseError
-
-
-def _clean_title(title: str) -> str:
-    return ''.join(ch for ch in (title or '') if ch.isalnum() or ch.isspace()).lower().strip()
-
-
-def _parse_show_datetime(showdate: str, showtime: str):
-    if not showdate:
-        return None
-    if showtime:
-        for fmt in ("%Y-%m-%d %I:%M %p", 
-                    "%Y-%m-%d %H:%M"):
-            try:
-                return datetime.strptime(f"{showdate} {showtime}", fmt)
-            except Exception:
-                continue
-    try:
-        return datetime.strptime(showdate, "%Y-%m-%d")
-    except Exception:
-        return None
-
-
-def _dedupe_rows(rows):
-    """Return a list of deduped rows keeping the earliest showing per cleaned title."""
-    entries = []
-    for m in rows:
-        # skip entries where tickets are sold out
-        ticket_link = (m.get('ticket_link') or '')
-        if isinstance(ticket_link, str) and ticket_link.strip().lower() == 'sold_out':
-            continue
-
-        title_orig = (m.get('title') or '').strip()
-        cleaned = _clean_title(title_orig)
-        dt = _parse_show_datetime(m.get('showdate'), m.get('showtime'))
-        entries.append({
-            'cleaned': cleaned,
-            'original': title_orig,
-            'ticket_link': ticket_link,
-            'id': m.get('id'),
-            'dt': dt,
-            'showdate': m.get('showdate'),
-            'showtime': m.get('showtime'),
-            'cinema': m.get('cinema'),
-            'director': m.get('director'),
-            'year': m.get('year'),
-            'runtime': m.get('runtime'),
-            'format': m.get('format'),
-            'synopsis': m.get('synopsis'),
-            'image_url': m.get('image_url'),
-        })
-
-    best_by_title = {}
-    for e in entries:
-        key = e['cleaned'] or e['original']
-        if key in best_by_title:
-            existing = best_by_title[key]
-            if e['dt'] and existing['dt']:
-                if e['dt'] < existing['dt']:
-                    best_by_title[key] = e
-            elif e['dt'] and not existing['dt']:
-                best_by_title[key] = e
-        else:
-            best_by_title[key] = e
-
-    candidates = list(best_by_title.values())
-    candidates.sort(key=lambda x: x['dt'] if x['dt'] is not None else datetime.max)
-    return candidates
+from errors import LLMError, ParseError
 
 
 def _truncate(s: str, n: int = 300) -> str:
@@ -98,43 +30,6 @@ def _extract_json_object(text: str):
             except Exception:
                 return None
     return None
-
-
-def parse_response(text_content: str, engine=None):
-    parsed_map = _extract_json_object(text_content)
-    if not parsed_map or not isinstance(parsed_map, dict):
-        raise ParseError("could not parse id->reason JSON from model output")
-
-    id_to_reason = {}
-    ids = []
-    for k, v in parsed_map.items():
-        try:
-            ik = int(k)
-        except Exception:
-            try:
-                ik = int(str(k).strip())
-            except Exception:
-                continue
-        id_to_reason[ik] = str(v) if v is not None else ''
-        ids.append(ik)
-
-    if not ids:
-        raise ValueError("model returned no numeric ids")
-
-    try:
-        rows = get_showtimes_by_ids(ids, engine=engine)
-    except Exception as e:
-        raise DBError(f"database error fetching ids: {e}")
-
-    recs = []
-    for r in rows:
-        rid = r.get('id')
-        if rid in id_to_reason:
-            rr = r.copy()
-            rr['reason'] = id_to_reason[rid]
-            recs.append(rr)
-
-    return recs[:5]
 
 
 def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
@@ -159,9 +54,6 @@ def _group_showtimes_by_cinema(showtimes: List[Dict[str, Any]]):
     for st in showtimes:
         cinema = st.get('cinema') or 'Unknown'
         grouped.setdefault(cinema, []).append(st)
-    # preserve chronological order within each cinema
-    for cinema, rows in grouped.items():
-        grouped[cinema] = rows
     return grouped
 
 
@@ -308,7 +200,6 @@ def recommend_movies_by_embedding(preference: str, db_engine: Engine = None,
         meta = candidate_lookup.get(mid)
         st_list = showtime_map.get(mid, [])
         if not meta or not st_list:
-            import logging
             logging.getLogger(__name__).warning(
                 "recommend: dropping movie_id=%s (meta=%s, showtimes=%d) — likely no future shows",
                 mid, bool(meta), len(st_list)

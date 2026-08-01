@@ -1,33 +1,66 @@
 # CinePulse
 
-Curates local cinema schedule and uses an LLM to recommend what to watch.
+Aggregates New York repertory and independent cinema schedules into one calendar, and lets you find
+something to watch by describing it in plain English.
 
-**Live demo:** https://cinepulse-ct8r.onrender.com/  
+**Live demo:** https://cinepulse.fly.dev/  
 <p align="center">
-  <img src="assets/CinePulse_Demo_20260301.gif" width="500" />
+  <img src="docs/demos/CinePulse_Demo_20260301.gif" width="500" />
 </p>
 
-## Stack
-- Flask UI/API: [src/app.py](src/app.py)
-- LLM selector (ollama or OpenAI) and recommendation: [src/bots/llm_selector.py](src/bots/llm_selector.py), [src/bots/get_recommendation.py](src/bots/get_recommendation.py)
-- Postgres (+ pgvector) + SQLAlchemy database: [src/database/models.py](src/database/models.py), [src/database/queries.py](src/database/queries.py)
-- Scrapy ETL: [scrapers/spiders/metrograph_spider.py](scrapers/spiders/metrograph_spider.py), [scrapers/pipelines.py](scrapers/pipelines.py)
+## Documentation
+Full docs live in [docs/](docs/README.md):
+[overview](docs/overview.md) ·
+[architecture](docs/architecture.md) ·
+[decisions](docs/decisions.md) ·
+[data model](docs/data-model.md) ·
+[scraping pipeline](docs/scraping-pipeline.md) ·
+[calendar view](docs/calendar-view.md) ·
+[search](docs/search.md) ·
+[recommendations](docs/recommend.md) ·
+[frontend](docs/frontend.md)
 
-## Data flow
-1) Scrapy spider harvests showtimes → writes to Postgres.  
-2) Two-stage recommendation pipeline: user preferences are embedded and compared to film embeddings via cosine similarity to retrieve top-K candidate movies, then an LLM re-ranks and outputs the top 5 recommendations in structured JSON.
-4) UI renders recommendations with reasons + upcoming showtimes.
+Working in the repo (workflow, commands, safety constraints): [AGENTS.md](AGENTS.md).
+
+## Architecture
+
+```
+                       cinema sites  +  JSON APIs
+                                  │
+   ┌─ OFFLINE ─ weekly cron ──────▼───────────────────────────────┐
+   │                                                              │
+   │   Scrapy spiders  ──►  OpenAI embeddings  ──►  OMDb + TMDb   │
+   │                                                ratings,      │
+   │                                                posters       │
+   └──────────────────────────────┬───────────────────────────────┘
+                                  │ writes
+                   ┌──────────────▼───────────────┐
+                   │   PostgreSQL  +  pgvector    │
+                   │   movies · showtimes         │
+                   └──────────────┬───────────────┘
+                                  │ reads
+   ┌─ ONLINE ─ Flask on gunicorn ─▼───────────────────────────────┐
+   │                                                              │
+   │   calendar        search              recommend              │
+   │   Jinja           cosine ranking      cosine → LLM re-rank   │
+   │                                       to 5 picks + reasons   │
+   └──────────────────────────────┬───────────────────────────────┘
+                                  ▼
+                  Browser - server-rendered Jinja + vanilla JS
+```
+
+Full detail in [architecture.md](docs/architecture.md).
 
 ## Quickstart
-Requirements: Python 3.10+, Postgres with pgvector, optional OpenAI key.
+Requirements: Python 3.10+, PostgreSQL 14+ with pgvector, and an OpenAI API key - required for
+embeddings even when running Ollama for chat.
 
-1) Install: `pip install -r requirements.txt`
-2) Env: `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `OPENAI_API_KEY` (if using OpenAI), `LLM_PROVIDER` (`openai` or `ollama`).
-3) Run: `export FLASK_APP=src/app.py && flask run` (optional: `python scrapers/run_spider.py` to update showtimes; `python src/database/sync_embeddings.py` to embed film metadata).
+```bash
+python -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+export FLASK_APP=src/app.py && flask run
+```
 
-## Next
-- Augment film metadata (genre etc.) from TMDB. Add filtering for showtimes table.
-- Add RAG to directly quote synopsis content in reason.
-- Add caching for stable recommendations per time window.
-- Expand to more cinemas.
-- UI polish: richer cards and mobile-first layout.
+## What's next
+Planned work is tracked in
+[decisions.md](docs/decisions.md#what-we-would-change-next), where each item is stated as the cost
+of the design decision that produced it.

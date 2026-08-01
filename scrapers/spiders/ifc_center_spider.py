@@ -43,6 +43,7 @@ def _infer_year(month: int, day: int, today: datetime.date) -> int:
 
 class IFCCenterSpider(scrapy.Spider):
     name = 'ifc_center'
+    cinemas = ['IFC CENTER']  # every cinema this spider emits; see DryRunCollectorPipeline
     start_urls = ['https://www.ifccenter.com/']
 
     custom_settings = {

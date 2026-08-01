@@ -29,6 +29,7 @@ def _para_text(selector):
 
 class MetrographSpider(scrapy.Spider):
     name = 'metrograph'
+    cinemas = ['METROGRAPH']  # every cinema this spider emits; see DryRunCollectorPipeline
     start_urls = ['https://metrograph.com/film/']
     custom_settings = {
         'DOWNLOAD_DELAY': 1,
@@ -55,7 +56,7 @@ class MetrographSpider(scrapy.Spider):
 
             try:
                 year, runtime, format = descript[-1].split('/')
-                year, runtime, format = year.strip(), runtime.strip(), format.strip()
+                year, runtime, format = year.strip(), runtime.strip(), format.strip().upper()
             except Exception:
                 try:
                     year, runtime = descript[-1].split('/')

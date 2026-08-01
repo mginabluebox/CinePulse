@@ -174,12 +174,18 @@ cython_debug/
 
 .vscode/
 
-tests/
 archive/
 .github/
 
-requirements-test.txt
+# Local working assets - scraper output dumps, SQL dumps, and exploratory
+# notebooks / one-off scripts. Not part of the deployed app.
+# scripts/ is intentionally NOT ignored: it holds repeatable DB maintenance
+# tooling that the docs reference.
+data/
+notebooks/
 
 # Claude
 .claude
 CLAUDE.md
+
+docs/.obsidian/

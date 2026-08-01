@@ -18,7 +18,8 @@ class Showtime(Base):
     ticket_link = Column(Text)
     details_link = Column(Text)
     image_url = Column(Text)
-    special_events = Column(Text)
+    special_attributes = Column(Text)
+    trailer_url = Column(Text)
 
     # Movie level fields
     title = Column(String(255), nullable=False)

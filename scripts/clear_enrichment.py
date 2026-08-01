@@ -5,8 +5,8 @@ the movie's enriched_at is set to NULL so sync_enrichment.py picks it up on
 the next run.
 
 Usage (from repo root):
-    python src/database/clear_enrichment.py --movie-id 695          # dry-run
-    python src/database/clear_enrichment.py --movie-id 695 --apply  # execute
+    python scripts/clear_enrichment.py --movie-id 695          # dry-run
+    python scripts/clear_enrichment.py --movie-id 695 --apply  # execute
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import logging
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

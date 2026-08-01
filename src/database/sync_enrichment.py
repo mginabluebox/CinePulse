@@ -33,7 +33,7 @@ load_dotenv(find_dotenv())
 
 from sqlalchemy import or_, select, exists
 
-from src.database.dedup_movies import _api_lookup_title
+from src.database.title_normalization import _api_lookup_title
 from src.database.models import Movie, Showtime
 from src.database.setup_db import get_engine, get_session
 

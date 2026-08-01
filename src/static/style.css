@@ -579,7 +579,7 @@
 .cp-film-times {
     display: flex;
     flex-wrap: wrap;
-    gap: .5rem;
+    gap: .35rem;
     justify-content: flex-start;
     flex: 1 1 100%;
 }
@@ -610,13 +610,13 @@
     flex-direction: column;
     align-items: center;
     font-family: 'Space Grotesk', sans-serif;
-    font-size: .72rem;
+    font-size: .6rem;
     font-weight: 700;
     letter-spacing: .04em;
     text-decoration: none;
     color: var(--cp-accent);
     border: 1px solid var(--cp-accent);
-    padding: .3rem .6rem;
+    padding: .2rem .45rem;
     white-space: nowrap;
     line-height: 1.2;
 }
@@ -662,7 +662,7 @@
 
 .cp-fmt-tag {
     display: block;
-    font-size: .48rem;
+    font-size: .42rem;
     font-weight: 600;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -721,6 +721,52 @@
     min-width: 100px;
     padding-top: .35rem;
     flex-shrink: 0;
+}
+
+.cp-showtimes-overflow {
+    display: none;
+    flex-direction: column;
+    gap: .65rem;
+}
+
+.cp-film-banner.expanded .cp-showtimes-overflow {
+    display: flex;
+}
+
+/* ── Cinema section headers inside search / recommendation cards ─────────── */
+.cp-search-cinema-section {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.cp-search-cinema-section + .cp-search-cinema-section {
+    margin-top: .45rem;
+}
+
+.cp-search-cinema-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--cp-text-muted);
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.cp-search-cinema-arrow {
+    color: inherit;
+    text-decoration: none;
+    opacity: .65;
+    transition: opacity .15s, color .15s;
+    font-size: .7em;
+}
+
+.cp-search-cinema-arrow:hover {
+    color: var(--cp-accent);
+    opacity: 1;
 }
 
 .cp-no-showtimes {
@@ -992,7 +1038,7 @@
 
     /* Time buttons — larger touch target */
     .cp-time-btn {
-        padding: .5rem .75rem;
+        padding: .35rem .55rem;
     }
 
     /* Film times — full width when on their own row */

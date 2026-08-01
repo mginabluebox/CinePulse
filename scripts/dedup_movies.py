@@ -1,21 +1,22 @@
 """Deduplicate movie records that differ only by format/accessibility suffixes.
 
+One-time / maintenance script — not part of the deployed app. Title normalization
+logic lives in src/database/title_normalization.py and is shared with the scraper.
+
 Usage (from repo root):
-    python src/database/dedup_movies.py            # dry-run, no writes
-    python src/database/dedup_movies.py --apply    # execute merges
+    python scripts/dedup_movies.py            # dry-run, no writes
+    python scripts/dedup_movies.py --apply    # execute merges
 """
 from __future__ import annotations
 
 import argparse
 import logging
-import re
 import sys
-import unicodedata
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Tuple
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -24,122 +25,14 @@ load_dotenv(find_dotenv())
 
 from src.database.models import Movie, Showtime
 from src.database.setup_db import get_engine, get_session
+from src.database.title_normalization import (
+    _api_lookup_title,
+    _normalize_for_matching,
+    _strip_display_suffix,
+)
 
 LOGGER = logging.getLogger('dedup_movies')
 logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
-
-# ── Whitelist regexes ──────────────────────────────────────────────────────────
-
-_PAREN_SUFFIX = re.compile(
-    r'\s*\(\s*open\s*captioning\s*\)\s*$',
-    flags=re.IGNORECASE,
-)
-_BRACKET_SUFFIX = re.compile(
-    r'\s*\[\s*(?:35mm|16mm|70mm|dcp|digital|ov)\s*\]\s*$',
-    flags=re.IGNORECASE,
-)
-_FORMAT_SUFFIX = re.compile(
-    r'\s+in\s+(?:16|35|70)mm\s*$',
-    flags=re.IGNORECASE,
-)
-
-# All cinemas: "X presents: TITLE" prefix (6 known records across Metrograph, IFC CENTER)
-_PRESENTS_PREFIX_RE = re.compile(r'^.+?\bpresents:?\s+', re.IGNORECASE)
-
-# Metrograph-only: "X selects TITLE" prefix — API lookup only
-_METROGRAPH_SELECTS_RE = re.compile(r'^.+?\bselects\s+', re.IGNORECASE)
-
-# Metrograph-only: "TITLE preceded by OTHER TITLE" — keep first title for API lookup
-_METROGRAPH_PRECEDED_BY_RE = re.compile(r'\s+preceded\s+by\s+.+$', re.IGNORECASE)
-
-
-def _normalize_whitespace(t: str) -> str:
-    """Normalize unicode whitespace (e.g. \xa0 non-breaking space) to plain spaces."""
-    t = unicodedata.normalize('NFKC', t)
-    return ' '.join(t.split())
-
-
-# ── Normalization (also imported by scrapers/pipelines.py) ────────────────────
-
-def _is_all_caps_word(word: str) -> bool:
-    """True if word has ≥1 uppercase letter and zero lowercase letters."""
-    return any(c.isupper() for c in word) and not any(c.islower() for c in word)
-
-
-def _api_lookup_title(title: str, cinema: str = '') -> str:
-    """Return title normalized for OMDb/TMDb API lookups.
-
-    Composes _strip_display_suffix (access/format suffix removal) with
-    API-specific rules that are mutually exclusive from dedup normalization:
-      - All cinemas: strip "X presents:" prefix
-      - Film Forum: extract all-caps film title from director-credit format
-        (e.g. "Spike Lee's CROOKLYN" → "CROOKLYN")
-
-    Returns with original casing preserved (APIs are case-insensitive).
-    """
-    # _strip_display_suffix handles whitespace normalization and suffix stripping —
-    # those rules are not repeated here to avoid double-applying them.
-    t = _strip_display_suffix(title)
-    t = _PRESENTS_PREFIX_RE.sub('', t).strip()
-    if 'METROGRAPH' in cinema.upper():
-        t = _METROGRAPH_SELECTS_RE.sub('', t).strip()
-        t = _METROGRAPH_PRECEDED_BY_RE.sub('', t).strip()
-    if 'FILM FORUM' in cinema.upper():
-        # Normalize curly apostrophes (U+2018/U+2019) scraped from Film Forum to
-        # straight apostrophe so OMDb lookup matches (e.g. BERNSTEIN’S WALL)
-        t = t.replace('’', "'").replace('‘', "'")
-        words = t.split()
-        mixed_case_words = [w for w in words if any(c.islower() for c in w)]
-        # Only extract when ≥2 mixed-case words — prevents false positives on
-        # all-caps titles (BERNSTEIN'S WALL) and near-all-caps like
-        # "MAD BILLS TO PAY (or DESTINY...)" which has only one lowercase word.
-        if len(mixed_case_words) > 1:
-            runs: list[str] = []
-            current: list[str] = []
-            for w in words:
-                if _is_all_caps_word(w):
-                    current.append(w)
-                else:
-                    if current:
-                        runs.append(' '.join(current))
-                        current = []
-            if current:
-                runs.append(' '.join(current))
-            # Use LAST run to skip abbreviations like (YFF) that precede the real title
-            if runs:
-                last_run = runs[-1]
-                if last_run != t:
-                    t = last_run
-    return t
-
-
-def _scraped_title_normalized(title: str, cinema: str = '') -> str:
-    """Return lowercase canonical title applying cinema-specific rules.
-
-    Used by pipelines.py to route scraped items to the correct movie record.
-    Only rules confirmed for that cinema are applied.
-    """
-    t = _normalize_whitespace((title or '').strip())
-    t = _PAREN_SUFFIX.sub('', t).strip()
-    if 'METROGRAPH' in cinema.upper():
-        t = _BRACKET_SUFFIX.sub('', t).strip()
-    if 'FILM FORUM' in cinema.upper():
-        t = _FORMAT_SUFFIX.sub('', t).strip()
-    return t.lower()
-
-
-def _normalize_for_matching(title: str) -> str:
-    """Apply all rules unconditionally for cross-cinema duplicate detection."""
-    return _strip_display_suffix(title).lower()
-
-
-def _strip_display_suffix(title: str) -> str:
-    """Strip format suffix and normalize whitespace, preserving original casing."""
-    t = _normalize_whitespace((title or '').strip())
-    t = _PAREN_SUFFIX.sub('', t).strip()
-    t = _BRACKET_SUFFIX.sub('', t).strip()
-    t = _FORMAT_SUFFIX.sub('', t).strip()
-    return t
 
 
 # ── Primary selection ─────────────────────────────────────────────────────────

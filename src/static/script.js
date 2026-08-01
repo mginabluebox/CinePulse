@@ -124,17 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .toLowerCase();
   }
 
-  // Render title with cinema suffix styled separately; detailsLink makes the cinema+arrow clickable
-  function titleHtml(title, cinemas, detailsLink) {
-    if (!cinemas || !cinemas.length) return esc(title);
-    const cinemaText = ` @ ${esc(cinemas.join(' & '))}`;
-    if (detailsLink) {
-      const onclick = `event.stopPropagation();window.open('${escAttr(detailsLink)}','_blank')`;
-      return `${esc(title)}<span class="cp-title-cinema" onclick="${onclick}">${cinemaText}<span class="cp-details-arrow"> ↗</span></span>`;
-    }
-    return `${esc(title)}<span class="cp-title-cinema">${cinemaText}</span>`;
-  }
-
   function _fmtTag(fmt) {
     if (!fmt) return '';
     const u = fmt.toUpperCase();
@@ -143,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Shared showtime rendering (consistent with landing page) ---
-  function renderShowtimeBtns(showtimes) {
+  function renderShowtimeBtns(showtimes, maxDates) {
     if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
     // Group by date
     const order = [];
@@ -153,10 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!groups[date]) { groups[date] = { label: st.show_day ? `${st.show_day}, ${date}` : date, sts: [] }; order.push(date); }
       groups[date].sts.push(st);
     });
-    return order.map(date => {
+    const renderGroup = date => {
       const { label, sts } = groups[date];
       sts.sort((a, b) => _stMins(a.showtime) - _stMins(b.showtime));
-    const btns = sts.map(st => {
+      const btns = sts.map(st => {
         const fmt = _fmtTag(st.format);
         if (st.ticket_link === 'sold_out') {
           return `<span class="cp-time-btn sold-out"><span>${fmt}${esc(st.showtime)}</span></span>`;
@@ -164,6 +153,35 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<a href="${escAttr(st.ticket_link)}" target="_blank" class="cp-time-btn">${fmt}${esc(st.showtime)}</a>`;
       }).join('');
       return `<div class="cp-showtime-date-group"><span class="cp-showtime-date-label">${esc(label)}</span><div class="cp-film-times">${btns}</div></div>`;
+    };
+    if (maxDates === undefined || order.length <= maxDates) {
+      return order.map(renderGroup).join('');
+    }
+    const visible = order.slice(0, maxDates).map(renderGroup).join('');
+    const overflow = order.slice(maxDates).map(renderGroup).join('');
+    return visible + `<div class="cp-showtimes-overflow">${overflow}</div>`;
+  }
+
+  // Groups showtimes by cinema, always rendering a cinema header above date/time
+  // (a blank cinema name still renders headerless to avoid an empty label).
+  // Each cinema section applies the same maxDates overflow as renderShowtimeBtns.
+  function renderShowtimeByCinema(showtimes, maxDates) {
+    if (!Array.isArray(showtimes) || showtimes.length === 0) return '';
+    const cinemaOrder = [];
+    const byCinema = {};
+    showtimes.forEach(st => {
+      const cinema = st.cinema || '';
+      if (!byCinema[cinema]) { byCinema[cinema] = []; cinemaOrder.push(cinema); }
+      byCinema[cinema].push(st);
+    });
+    return cinemaOrder.map(cinema => {
+      const sts = byCinema[cinema];
+      const detailsLink = sts.map(s => s.details_link).find(Boolean) || '';
+      const arrow = detailsLink
+        ? ` <a href="${escAttr(detailsLink)}" target="_blank" class="cp-search-cinema-arrow" onclick="event.stopPropagation()">↗</a>`
+        : '';
+      const header = cinema ? `<div class="cp-search-cinema-label">${esc(cinema)}${arrow}</div>` : '';
+      return `<div class="cp-search-cinema-section">${header}${renderShowtimeBtns(sts, maxDates)}</div>`;
     }).join('');
   }
 
@@ -227,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return chips ? `<div class="cp-ratings-row">${chips}</div>` : '';
   }
 
-  function renderFilmBanner(film, { titleContent, timesHtml = '', extraInfoHtml = '', expandableEl = '' }) {
+  function renderFilmBanner(film, { titleContent, timesHtml = '', extraInfoHtml = '', expandableEl = '', isExpandable }) {
     const imgHtml = film.image_url
       ? `<img src="${escAttr(film.image_url)}" alt="${esc(film.title)}" class="cp-film-thumb" loading="lazy" onerror="this.closest('.cp-film-thumb-wrap').style.display='none'">`
       : '';
@@ -249,10 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const expandSection = expandableEl
       ? `<div class="cp-banner-synopsis-inline">${expandableEl}</div>`
       : '';
+    const expandable = isExpandable !== undefined ? isExpandable : !!expandableEl;
     return `
       <div class="cp-film-banner">
         <div class="cp-film-banner-row">
-          <div class="cp-film-banner-trigger${expandableEl ? ' cp-expandable' : ''}">
+          <div class="cp-film-banner-trigger${expandable ? ' cp-expandable' : ''}">
             <div class="cp-film-left">
               <div class="cp-film-thumb-wrap">${imgHtml}</div>
               ${ratingsHtml}
@@ -283,19 +302,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showtimeEmptyState) showtimeEmptyState.classList.add('d-none');
 
     const html = movies.map((m) => {
-      const cinemas = [...new Set((m.showtimes || []).map(s => s.cinema).filter(Boolean))];
-      const detailsLink = (m.showtimes || []).map(s => s.details_link).find(Boolean) || '';
       const simHtml = typeof m.similarity === 'number'
         ? `<span class="cp-similarity">${Math.round(m.similarity * 100)}% match</span>`
         : '';
       const expandableEl = m.synopsis
         ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>`
         : '';
+      const datesByCinema = {};
+      (m.showtimes || []).forEach(s => {
+        const c = s.cinema || '';
+        if (!datesByCinema[c]) datesByCinema[c] = new Set();
+        if (s.showdate) datesByCinema[c].add(s.showdate);
+      });
+      const hasOverflow = Object.values(datesByCinema).some(dates => dates.size > 2);
       return renderFilmBanner(m, {
-        titleContent: titleHtml(m.title, cinemas, detailsLink),
-        timesHtml: `<div class="cp-showtime-groups">${renderShowtimeBtns(m.showtimes)}</div>`,
+        titleContent: esc(m.title),
+        timesHtml: `<div class="cp-showtime-groups">${renderShowtimeByCinema(m.showtimes, 2)}</div>`,
         extraInfoHtml: simHtml,
         expandableEl,
+        isExpandable: hasOverflow || !!expandableEl,
       });
     }).join('');
 
@@ -482,7 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
       card.dataset.payload = JSON.stringify(payload);
 
       const imgUrl = it.scraped_image_url || it.image_url;
-      const cinemaList = [...new Set((it.showtimes || []).map(s => s.cinema).filter(Boolean))];
       const imgHtml = imgUrl ? `<div class="card-img-wrapper mb-2"><img src="${escAttr(imgUrl)}" alt="${esc(it.title)} poster" class="swipe-card-img"></div>` : '';
       const metaBits = [];
       const metaParts = [];
@@ -503,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="swipe-feedback-overlay swipe-feedback-nope">${SWIPE_ICON_DISLIKE}</div>
         <div>
           ${imgHtml}
-          <div class="title">${titleHtml(it.title, cinemaList)}</div>
+          <div class="title">${esc(it.title)}</div>
           ${cardOrigTitle}
           <div class="small text-muted">${metaLine}</div>
           ${cardTrailerHtml}
@@ -558,21 +582,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const html = rows.map((m) => {
       const stList = Array.isArray(m.showtimes) ? m.showtimes : [];
-      const summaryCinemas = [...new Set(stList.map(s => s.cinema).filter(Boolean))];
-      const summaryDetailsLink = stList.map(s => s.details_link).find(Boolean) || '';
       const runtimeVal = m.runtime || (stList[0] && stList[0].runtime);
       const likedBadge = m.liked
         ? `<span class="me-2 cp-swipe-badge" aria-label="Liked">${SWIPE_ICON_LIKE}</span>`
         : `<span class="me-2 cp-swipe-badge" aria-label="Disliked">${SWIPE_ICON_DISLIKE}</span>`;
-      const showtimeBtns2 = renderShowtimeBtns(stList);
-      const timesHtml = showtimeBtns2 ? `<div class="cp-showtime-groups">${showtimeBtns2}</div>` : '';
+      const summaryTimesContent = renderShowtimeByCinema(stList);
+      const timesHtml = summaryTimesContent ? `<div class="cp-showtime-groups">${summaryTimesContent}</div>` : '';
       const reasonHtml = m.reason ? `<p class="cp-swipe-reason"><strong>Why you might like it:</strong> ${esc(m.reason)}</p>` : '';
       const synopsisContent = m.synopsis ? `<p class="cp-synopsis">${esc(m.synopsis)}</p>` : '';
       const expandableEl = reasonHtml || synopsisContent ? `${reasonHtml}${synopsisContent}` : '';
       return renderFilmBanner(
         { ...m, image_url: m.scraped_image_url || m.image_url, runtime: runtimeVal },
         {
-          titleContent: `${likedBadge}${titleHtml(m.title, summaryCinemas, summaryDetailsLink)}`,
+          titleContent: `${likedBadge}${esc(m.title)}`,
           timesHtml,
           expandableEl,
         }

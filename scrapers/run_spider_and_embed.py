@@ -32,7 +32,7 @@ from src.database.sync_enrichment import sync_enrichment  # noqa: E402
 LOGGER = logging.getLogger("run_spider_and_embed")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-DRY_RUN_OUTPUT_DIR = ROOT / "tests" / "scraper"
+DRY_RUN_OUTPUT_DIR = ROOT / "data" / "scraper"
 DRY_RUN_MOVIES_PER_CINEMA = 10
 
 
@@ -41,13 +41,14 @@ def run_spider() -> None:
     process.crawl('metrograph')
     process.crawl('film_forum')
     process.crawl('ifc_center')
+    process.crawl('angelika')
     process.start()
 
 
 def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
     """Scrape up to n_movies per cinema without writing to the DB.
 
-    Returns the path of the JSON file written to tests/scraper/.
+    Returns the path of the JSON file written to data/scraper/.
     """
     from scrapers.pipelines import DryRunCollectorPipeline
 
@@ -60,6 +61,7 @@ def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
     process.crawl('metrograph')
     process.crawl('film_forum')
     process.crawl('ifc_center')
+    process.crawl('angelika')
     process.start()
 
     # Group raw showtime items into movie records for readability
@@ -72,7 +74,6 @@ def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
             movies_by_cinema[cinema][title] = {
                 'title': title,
                 'pipeline_clean_title': item.get('_pipeline_clean_title'),
-                'pipeline_dedup_key': item.get('_pipeline_dedup_key'),
                 'pipeline_api_lookup': item.get('_pipeline_api_lookup'),
                 'year': item.get('year'),
                 'director1': item.get('director1'),
@@ -82,6 +83,7 @@ def _run_dry_spiders(n_movies: int = DRY_RUN_MOVIES_PER_CINEMA) -> Path:
                 'synopsis': synopsis[:300] + ('…' if len(synopsis) > 300 else ''),
                 'image_url': item.get('image_url'),
                 'details_link': item.get('details_link'),
+                'special_attributes': item.get('special_attributes'),
                 'showtimes': [],
             }
         show_time = item.get('show_time')
@@ -112,7 +114,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--refresh-enrichment", action="store_true",
                         help="Force re-enrich all movies with future showtimes, ignoring enriched_at")
     parser.add_argument("--dry-run", action="store_true",
-                        help=f"Scrape {DRY_RUN_MOVIES_PER_CINEMA} movies per cinema, no DB writes; save to tests/scraper/")
+                        help=f"Scrape {DRY_RUN_MOVIES_PER_CINEMA} movies per cinema, no DB writes; save to data/scraper/")
     return parser
 
 
