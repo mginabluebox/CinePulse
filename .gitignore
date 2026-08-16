@@ -175,7 +175,6 @@ cython_debug/
 .vscode/
 
 archive/
-.github/
 
 # Local working assets - scraper output dumps, SQL dumps, and exploratory
 # notebooks / one-off scripts. Not part of the deployed app.
