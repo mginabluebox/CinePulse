@@ -431,22 +431,24 @@ fly machine update <machine-id> --image registry.fly.io/cinepulse:latest --app c
 Skipping this is the most common deployment mistake in this project: the code ships, the weekly job
 keeps running the old image, and nothing reports it.
 
+**The command is a positional argument, not `--command`.** `flyctl machine run` is
+`flyctl machine run <image> [command]`; its `--command` flag is only used with `--shell` and is
+silently ignored otherwise. Pass it with `--command` and the machine boots the Dockerfile `CMD`
+instead - gunicorn - which OOM-crashloops in a 256 MB VM and never runs the scraper. Verify with
+`fly machine status <id>`: the `Command` field must not be empty.
+
 **Smoke-test an image** as a one-off machine (no `--schedule`) before scheduling it:
 ```bash
-fly machine run registry.fly.io/cinepulse:latest \
-  --app cinepulse \
-  --command "python /app/scrapers/run_spider_and_embed.py" \
-  --region sjc --vm-memory 256
+fly machine run --app cinepulse --region sjc --vm-memory 512 \
+  registry.fly.io/cinepulse:latest \
+  python /app/scrapers/run_spider_and_embed.py
 
 fly logs --app cinepulse --machine <machine-id>
 ```
 
 **Recreate the scheduled machine** if it is ever deleted:
 ```bash
-fly machine run registry.fly.io/cinepulse:latest \
-  --app cinepulse \
-  --schedule weekly \
-  --command "python /app/scrapers/run_spider_and_embed.py" \
-  --region sjc \
-  --vm-memory 256
+fly machine run --app cinepulse --region sjc --vm-memory 512 --schedule weekly \
+  registry.fly.io/cinepulse:latest \
+  python /app/scrapers/run_spider_and_embed.py
 ```
