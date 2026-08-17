@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Working instructions for AI coding agents and maintainers in this repository.
-`CLAUDE.md` and `.github/copilot-instructions.md` both point here; this is the only copy.
+`CLAUDE.md` is a symlink to this file; this is the only copy.
 
 **This file is about doing work.** For understanding the system - what it does, why it is built
 this way, how data flows, how to extend it - read [docs/](docs/README.md). Do not duplicate that
@@ -400,6 +400,22 @@ the topology and its rationale are in
 
 Pushing to `main` deploys the web app automatically. The commands below are for manual or
 out-of-band deploys.
+
+**CI authentication.** `.github/workflows/fly-deploy.yml` authenticates as the `FLY_API_TOKEN`
+GitHub repository secret (Settings -> Secrets and variables -> Actions). It is a deploy-scoped
+token minted with `fly tokens create deploy -x 8760h --app cinepulse`, and the current one **expires
+2027-08-16**. When it expires the workflow fails red on every push to `main` - it does not fall back
+to anything. Mint a replacement and overwrite the secret; the value cannot be read back, only
+replaced. Keep `.github/` out of `.gitignore`: it was ignored until 2026-08-16, so the workflow was
+never committed and no push to `main` ever deployed.
+
+**Before relying on the weekly scrape, confirm the machine exists.**
+```bash
+fly machines list --app cinepulse
+```
+Expect two machines: process group `app`, plus a scheduled scraper machine. If only `app` comes
+back, ingestion is not running at all and the data silently ages - see **Recreate the scheduled
+machine** below. Nothing alerts on this.
 
 **App-only changes**
 ```bash
