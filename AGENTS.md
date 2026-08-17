@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Working instructions for AI coding agents and maintainers in this repository.
-`CLAUDE.md` and `.github/copilot-instructions.md` both point here; this is the only copy.
+`CLAUDE.md` is a symlink to this file; this is the only copy.
 
 **This file is about doing work.** For understanding the system - what it does, why it is built
 this way, how data flows, how to extend it - read [docs/](docs/README.md). Do not duplicate that
@@ -401,6 +401,22 @@ the topology and its rationale are in
 Pushing to `main` deploys the web app automatically. The commands below are for manual or
 out-of-band deploys.
 
+**CI authentication.** `.github/workflows/fly-deploy.yml` authenticates as the `FLY_API_TOKEN`
+GitHub repository secret (Settings -> Secrets and variables -> Actions). It is a deploy-scoped
+token minted with `fly tokens create deploy -x 8760h --app cinepulse`, and the current one **expires
+2027-08-16**. When it expires the workflow fails red on every push to `main` - it does not fall back
+to anything. Mint a replacement and overwrite the secret; the value cannot be read back, only
+replaced. Keep `.github/` out of `.gitignore`: it was ignored until 2026-08-16, so the workflow was
+never committed and no push to `main` ever deployed.
+
+**Before relying on the weekly scrape, confirm the machine exists.**
+```bash
+fly machines list --app cinepulse
+```
+Expect two machines: process group `app`, plus a scheduled scraper machine. If only `app` comes
+back, ingestion is not running at all and the data silently ages - see **Recreate the scheduled
+machine** below. Nothing alerts on this.
+
 **App-only changes**
 ```bash
 fly deploy --depot=false
@@ -415,22 +431,35 @@ fly machine update <machine-id> --image registry.fly.io/cinepulse:latest --app c
 Skipping this is the most common deployment mistake in this project: the code ships, the weekly job
 keeps running the old image, and nothing reports it.
 
+**The command is a positional argument, not `--command`.** `flyctl machine run` is
+`flyctl machine run <image> [command]`; its `--command` flag is only used with `--shell` and is
+silently ignored otherwise. Pass it with `--command` and the machine boots the Dockerfile `CMD`
+instead - gunicorn - which OOM-crashloops in a 256 MB VM and never runs the scraper. Verify with
+`fly machine status <id>`: the `Command` field must not be empty.
+
+Use the exact image digest rather than `:latest` - `fly status --app cinepulse` prints it.
+
 **Smoke-test an image** as a one-off machine (no `--schedule`) before scheduling it:
 ```bash
-fly machine run registry.fly.io/cinepulse:latest \
+fly status --app cinepulse    # note the Image tag
+
+fly machine run registry.fly.io/cinepulse:<deployment-tag> \
+  python /app/scrapers/run_spider_and_embed.py \
   --app cinepulse \
-  --command "python /app/scrapers/run_spider_and_embed.py" \
-  --region sjc --vm-memory 256
+  --region sjc \
+  --vm-memory 512
 
 fly logs --app cinepulse --machine <machine-id>
 ```
 
 **Recreate the scheduled machine** if it is ever deleted:
 ```bash
-fly machine run registry.fly.io/cinepulse:latest \
+fly machine run registry.fly.io/cinepulse:<deployment-tag> \
+  python /app/scrapers/run_spider_and_embed.py \
   --app cinepulse \
   --schedule weekly \
-  --command "python /app/scrapers/run_spider_and_embed.py" \
   --region sjc \
-  --vm-memory 256
+  --vm-memory 512
 ```
+
+256 MB is not enough: the scraper has been run successfully at `--vm-memory 512`.
