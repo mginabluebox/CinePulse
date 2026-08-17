@@ -437,18 +437,29 @@ silently ignored otherwise. Pass it with `--command` and the machine boots the D
 instead - gunicorn - which OOM-crashloops in a 256 MB VM and never runs the scraper. Verify with
 `fly machine status <id>`: the `Command` field must not be empty.
 
+Use the exact image digest rather than `:latest` - `fly status --app cinepulse` prints it.
+
 **Smoke-test an image** as a one-off machine (no `--schedule`) before scheduling it:
 ```bash
-fly machine run --app cinepulse --region sjc --vm-memory 512 \
-  registry.fly.io/cinepulse:latest \
-  python /app/scrapers/run_spider_and_embed.py
+fly status --app cinepulse    # note the Image tag
+
+fly machine run registry.fly.io/cinepulse:<deployment-tag> \
+  python /app/scrapers/run_spider_and_embed.py \
+  --app cinepulse \
+  --region sjc \
+  --vm-memory 512
 
 fly logs --app cinepulse --machine <machine-id>
 ```
 
 **Recreate the scheduled machine** if it is ever deleted:
 ```bash
-fly machine run --app cinepulse --region sjc --vm-memory 512 --schedule weekly \
-  registry.fly.io/cinepulse:latest \
-  python /app/scrapers/run_spider_and_embed.py
+fly machine run registry.fly.io/cinepulse:<deployment-tag> \
+  python /app/scrapers/run_spider_and_embed.py \
+  --app cinepulse \
+  --schedule weekly \
+  --region sjc \
+  --vm-memory 512
 ```
+
+256 MB is not enough: the scraper has been run successfully at `--vm-memory 512`.
